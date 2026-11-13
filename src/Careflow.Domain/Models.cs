@@ -14,13 +14,20 @@ public static class Permissions
     public const string BillingCollect = "billing.collect";
     public const string Admin = "security.admin";
     public const string AuditRead = "audit.read";
+    public const string IpdRead = "ipd.read"; public const string IpdWrite = "ipd.write"; public const string IpdDischarge = "ipd.discharge"; public const string IpdBed = "ipd.bed";
+    public const string NursingRead = "nursing.read"; public const string NursingWrite = "nursing.write"; public const string NursingOrder = "nursing.order"; public const string NursingAdminister = "nursing.administer"; public const string NursingHandover = "nursing.handover";
+    public const string PharmacyRead = "pharmacy.read"; public const string PharmacyWrite = "pharmacy.write"; public const string PharmacyDispense = "pharmacy.dispense";
+    public const string LabRead = "lab.read"; public const string LabOrder = "lab.order"; public const string LabCollect = "lab.collect"; public const string LabProcess = "lab.process"; public const string LabResult = "lab.result"; public const string LabValidate = "lab.validate"; public const string LabAuthorize = "lab.authorize"; public const string LabAcknowledge = "lab.acknowledge";
     public static readonly IReadOnlyDictionary<string, string[]> Roles = new Dictionary<string, string[]>
     {
-        ["Hospital Admin"] = [PatientRead, PatientWrite, ScheduleRead, ScheduleWrite, ClinicalRead, BillingRead, BillingWrite, BillingCollect, Admin, AuditRead],
-        ["Doctor"] = [PatientRead, ScheduleRead, ScheduleWrite, ClinicalRead, ClinicalWrite, ClinicalSign],
-        ["Receptionist"] = [PatientRead, PatientWrite, ScheduleRead, ScheduleWrite],
+        ["Hospital Admin"] = [PatientRead, PatientWrite, ScheduleRead, ScheduleWrite, ClinicalRead, BillingRead, BillingWrite, BillingCollect, Admin, AuditRead, IpdRead, IpdWrite, IpdBed, NursingRead, PharmacyRead, LabRead, LabAcknowledge],
+        ["Doctor"] = [PatientRead, ScheduleRead, ScheduleWrite, ClinicalRead, ClinicalWrite, ClinicalSign, IpdRead, IpdWrite, IpdDischarge, NursingRead, NursingWrite, NursingOrder, LabRead, LabOrder, LabAcknowledge],
+        ["Receptionist"] = [PatientRead, PatientWrite, ScheduleRead, ScheduleWrite, IpdRead, IpdWrite],
         ["Billing Staff"] = [PatientRead, ScheduleRead, BillingRead, BillingWrite, BillingCollect],
-        ["Nurse"] = [PatientRead, ScheduleRead, ClinicalRead]
+        ["Nurse"] = [PatientRead, ScheduleRead, ClinicalRead, IpdRead, IpdBed, NursingRead, NursingWrite, NursingAdminister, NursingHandover, LabRead, LabAcknowledge],
+        ["Pharmacist"] = [PatientRead, ClinicalRead, PharmacyRead, PharmacyWrite, PharmacyDispense],
+        ["Lab Technician"] = [PatientRead, LabRead, LabCollect, LabProcess, LabResult, LabValidate],
+        ["Pathologist"] = [PatientRead, ClinicalRead, LabRead, LabAuthorize, LabAcknowledge]
     };
     public static IReadOnlyList<string> For(string role) => Roles.TryGetValue(role, out var p) ? p : [];
 }
@@ -68,11 +75,17 @@ public sealed record Invoice(Guid Id, string Number, Guid PatientId, Guid? Encou
 public sealed record ModuleSetting(string Key, string Name, bool Enabled, int Phase, string Description);
 public sealed record AuditEvent(Guid Id, Guid ActorId, string ActorName, string Action, string Entity,
     Guid EntityId, string Reason, DateTimeOffset OccurredAt, string? Changes = null);
-public sealed record Chart(Patient Patient, IReadOnlyList<Encounter> Encounters, IReadOnlyList<Appointment> Appointments, IReadOnlyList<Invoice> Invoices, bool HistoryTruncated = false);
+public sealed record Chart(Patient Patient, IReadOnlyList<Encounter> Encounters, IReadOnlyList<Appointment> Appointments, IReadOnlyList<Invoice> Invoices, bool HistoryTruncated = false)
+{
+    public CareChart Care { get; init; } = CareChart.Empty;
+}
 public sealed record Workspace(IReadOnlyList<Patient> Patients, IReadOnlyList<Appointment> Appointments,
     IReadOnlyList<Encounter> Encounters, IReadOnlyList<Invoice> Invoices, IReadOnlyList<Doctor> Doctors,
     IReadOnlyList<ServiceItem> Services, IReadOnlyList<Medicine> Medicines, IReadOnlyList<ModuleSetting> Modules,
-    IReadOnlyList<AuditEvent> Audit, string HospitalName, string BranchName);
+    IReadOnlyList<AuditEvent> Audit, string HospitalName, string BranchName)
+{
+    public CareWorkspace Care { get; init; } = CareWorkspace.Empty;
+}
 
 public class DomainException(string code, string message, int statusCode = 422) : Exception(message)
 {

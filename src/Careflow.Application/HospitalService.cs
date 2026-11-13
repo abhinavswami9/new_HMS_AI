@@ -23,6 +23,7 @@ public sealed class HospitalService(IUnitOfWork unitOfWork, IClock clock, IPassw
         return await unitOfWork.ExecuteAsync(scope, async s =>
         {
             var w = await s.LoadAsync(scope, 201, ct);
+            var care = await s.LoadCareAsync(scope, 201, ct);
             var p = scope.Actor.Permissions;
             return new WorkspaceResult(w with
             {
@@ -30,7 +31,8 @@ public sealed class HospitalService(IUnitOfWork unitOfWork, IClock clock, IPassw
                 Encounters = p.Contains(Permissions.ClinicalRead) ? w.Encounters.Where(e => !p.Contains(Permissions.ClinicalSign) || e.DoctorId == scope.Actor.Id).Take(200).ToList() : [],
                 Invoices = p.Contains(Permissions.BillingRead) ? w.Invoices.Take(200).ToList() : [],
                 Audit = p.Contains(Permissions.AuditRead) ? w.Audit.Take(200).ToList() : []
-            }, w.Patients.Count > 200 || w.Appointments.Count > 200 || w.Encounters.Count > 200 || w.Invoices.Count > 200);
+            } with
+            { Care = care }, w.Patients.Count > 200 || w.Appointments.Count > 200 || w.Encounters.Count > 200 || w.Invoices.Count > 200 || care.Truncated);
         }, ct);
     }
     public Task<IReadOnlyList<Patient>> FindDuplicates(Scope scope, PatientInput input, CancellationToken ct) => unitOfWork.ExecuteAsync(scope, async s =>
@@ -65,8 +67,19 @@ public sealed class HospitalService(IUnitOfWork unitOfWork, IClock clock, IPassw
         var duplicates = await s.FindDuplicatesAsync(input.Phone, input.FirstName, input.LastName, input.DateOfBirth, ct);
         if (duplicates.Any(p => p.Id != id) && input.DuplicateReviewReason.Trim().Length < 10)
             throw new DomainException("patient.duplicate", "A possible existing patient was found. Search the registry or record a duplicate-review reason.", 409);
-        var patient = old with { FirstName = input.FirstName.Trim(), LastName = input.LastName.Trim(), DateOfBirth = input.DateOfBirth, Sex = input.Sex,
-            Phone = input.Phone.Trim(), Email = input.Email.Trim(), Address = input.Address.Trim(), EmergencyContact = input.EmergencyContact.Trim(), BloodGroup = input.BloodGroup, Version = version + 1 };
+        var patient = old with
+        {
+            FirstName = input.FirstName.Trim(),
+            LastName = input.LastName.Trim(),
+            DateOfBirth = input.DateOfBirth,
+            Sex = input.Sex,
+            Phone = input.Phone.Trim(),
+            Email = input.Email.Trim(),
+            Address = input.Address.Trim(),
+            EmergencyContact = input.EmergencyContact.Trim(),
+            BloodGroup = input.BloodGroup,
+            Version = version + 1
+        };
         await s.UpdatePatientAsync(patient, ct);
         await s.AddAuditAsync(Event(scope, "patient.updated", "Patient", id, input.DuplicateReviewReason, new { Before = old, After = patient }), ct);
         return patient;
@@ -75,8 +88,9 @@ public sealed class HospitalService(IUnitOfWork unitOfWork, IClock clock, IPassw
     {
         scope.Require(Permissions.PatientRead);
         var chart = await s.LoadChartAsync(patientId, 200, ct) ?? await Missing<Chart>("Patient");
+        var care = await s.LoadCareChartAsync(patientId, 200, ct);
         await s.AddAuditAsync(Event(scope, "patient.chart.viewed", "Patient", patientId), ct);
-        return chart;
+        return chart with { Care = care, HistoryTruncated = chart.HistoryTruncated || care.Truncated };
     }, ct);
     public Task<Appointment> Book(Scope scope, BookingInput input, CancellationToken ct) => unitOfWork.ExecuteAsync(scope, async s =>
     {
@@ -168,8 +182,21 @@ public sealed class HospitalService(IUnitOfWork unitOfWork, IClock clock, IPassw
         ClinicalRules.ValidateVitals(input.Vitals);
         var prescription = input.Prescription.Select(item => { var medicine = medicines.FirstOrDefault(m => m.Id == item.MedicineId); return item with { Name = medicine is null ? item.Name : $"{medicine.GenericName} {medicine.Strength}" }; }).ToList();
         ClinicalRules.ValidatePrescription(prescription, input.Allergies, medicines.Select(m => m.Id).ToHashSet());
-        var updated = e with { ChiefComplaint = input.ChiefComplaint, Examination = input.Examination, Diagnosis = input.Diagnosis, Plan = input.Plan, FollowUp = input.FollowUp,
-            Vitals = input.Vitals, Allergies = input.Allergies, Prescription = prescription, Orders = input.Orders, AllergyReviewed = input.AllergyReviewed, UpdatedAt = clock.UtcNow, Version = e.Version + 1 };
+        var updated = e with
+        {
+            ChiefComplaint = input.ChiefComplaint,
+            Examination = input.Examination,
+            Diagnosis = input.Diagnosis,
+            Plan = input.Plan,
+            FollowUp = input.FollowUp,
+            Vitals = input.Vitals,
+            Allergies = input.Allergies,
+            Prescription = prescription,
+            Orders = input.Orders,
+            AllergyReviewed = input.AllergyReviewed,
+            UpdatedAt = clock.UtcNow,
+            Version = e.Version + 1
+        };
         await s.UpdateEncounterAsync(updated, ct);
         await s.AddAuditAsync(Event(scope, "encounter.draft.saved", "Encounter", id), ct);
         return updated;
@@ -244,8 +271,12 @@ public sealed class HospitalService(IUnitOfWork unitOfWork, IClock clock, IPassw
         ClinicalRules.ValidatePayment(input.Amount, invoice.Balance);
         if (!new[] { "Cash", "Card", "UPI", "Bank transfer" }.Contains(input.Method) || string.IsNullOrWhiteSpace(input.Reference) || input.Reference.Length > 100)
             throw new DomainException("payment.reference", "Select a payment method and enter a unique payment reference.");
-        invoice = invoice with { Payments = [.. invoice.Payments, new Payment(Guid.NewGuid(), input.Amount, input.Method, input.Reference, clock.UtcNow, scope.Actor.Id)],
-            Status = invoice.Balance - input.Amount == 0 ? "Paid" : "Part paid", Version = input.Version + 1 };
+        invoice = invoice with
+        {
+            Payments = [.. invoice.Payments, new Payment(Guid.NewGuid(), input.Amount, input.Method, input.Reference, clock.UtcNow, scope.Actor.Id)],
+            Status = invoice.Balance - input.Amount == 0 ? "Paid" : "Part paid",
+            Version = input.Version + 1
+        };
         await s.UpdateInvoiceAsync(invoice, ct);
         await s.AddAuditAsync(Event(scope, "invoice.payment.recorded", "Invoice", id, changes: new { input.Amount, input.Method, input.Reference }), ct);
         return invoice;
@@ -254,7 +285,9 @@ public sealed class HospitalService(IUnitOfWork unitOfWork, IClock clock, IPassw
     {
         scope.Require(Permissions.Admin);
         var module = await s.FindModuleAsync(key, ct) ?? await Missing<ModuleSetting>("Module");
-        if (module.Phase > 1 && enabled) throw new DomainException("module.unavailable", "This module has not passed its implementation and release gates.");
+        if (module.Phase > 2 && enabled) throw new DomainException("module.unavailable", "This module has not passed its implementation and release gates.");
+        if (key == "nursing" && enabled && await s.FindModuleAsync("ipd", ct) is not { Enabled: true }) throw new DomainException("module.dependency", "Enable inpatient management before nursing.");
+        if (key == "ipd" && !enabled && (await s.FindModuleAsync("nursing", ct) is { Enabled: true } || await s.HasActiveAdmissionsAsync(ct))) throw new DomainException("module.dependency", "Disable nursing and complete active admissions before disabling inpatient management.");
         if (reason.Trim().Length < 10) throw new DomainException("policy.reason", "Record a configuration-change reason of at least 10 characters.");
         await s.SetModuleAsync(key, enabled, ct);
         await s.AddAuditAsync(Event(scope, "module.configured", "Module", Guid.NewGuid(), reason, new { Key = key, Before = module.Enabled, After = enabled }), ct);

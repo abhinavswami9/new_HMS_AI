@@ -22,12 +22,10 @@ export async function api<T>(
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!response.ok) {
-    const error = await response
-      .json()
-      .catch(() => ({
-        title: "The service is temporarily unavailable.",
-        code: "network",
-      }));
+    const error = await response.json().catch(() => ({
+      title: "The service is temporarily unavailable.",
+      code: "network",
+    }));
     throw new ApiError(
       error.detail || error.title || "Request failed.",
       error.code || "error",

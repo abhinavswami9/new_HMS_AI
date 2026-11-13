@@ -30,17 +30,17 @@ public static class AdministratorProvisioner
         }
         try
         {
-            if (await Scalar("SELECT COUNT(1) FROM org.Branches WHERE Id=@b AND HospitalId=@h",("b",branch),("h",hospital)) is not 1) throw new InvalidOperationException("The specified hospital/branch does not exist.");
-            if (await Scalar("SELECT COUNT(1) FROM iam.Users WHERE UserName=@u",("u",username)) is not 0) throw new InvalidOperationException("Username already exists. Use a governed password-reset process.");
-            var role = await Scalar("SELECT Id FROM iam.Roles WHERE HospitalId=@h AND Name=@name",("h",hospital),("name",roleName)) as Guid? ?? Guid.NewGuid();
+            if (await Scalar("SELECT COUNT(1) FROM org.Branches WHERE Id=@b AND HospitalId=@h", ("b", branch), ("h", hospital)) is not 1) throw new InvalidOperationException("The specified hospital/branch does not exist.");
+            if (await Scalar("SELECT COUNT(1) FROM iam.Users WHERE UserName=@u", ("u", username)) is not 0) throw new InvalidOperationException("Username already exists. Use a governed password-reset process.");
+            var role = await Scalar("SELECT Id FROM iam.Roles WHERE HospitalId=@h AND Name=@name", ("h", hospital), ("name", roleName)) as Guid? ?? Guid.NewGuid();
             var user = Guid.NewGuid(); var membership = Guid.NewGuid();
-            await Execute("IF NOT EXISTS(SELECT 1 FROM iam.Roles WHERE Id=@r) INSERT INTO iam.Roles(Id,HospitalId,Name,Description) VALUES(@r,@h,@name,'Configurable scoped role; clinical signing requires qualified membership')",("r",role),("h",hospital),("name",roleName));
-            foreach (var permission in Permissions.For(roleName)) await Execute("IF NOT EXISTS(SELECT 1 FROM iam.RolePermissions WHERE HospitalId=@h AND RoleId=@r AND PermissionKey=@p) INSERT INTO iam.RolePermissions(HospitalId,RoleId,PermissionKey) VALUES(@h,@r,@p)",("h",hospital),("r",role),("p",permission));
-            await Execute("INSERT INTO iam.Users(Id,HospitalId,UserName,DisplayName,PasswordHash,Enabled) VALUES(@id,@h,@u,@name,@hash,1)",("id",user),("h",hospital),("u",username),("name",name),("hash",new IdentityPasswordService().Hash(password)));
-            await Execute("INSERT INTO iam.Memberships(Id,HospitalId,BranchId,UserId,Active) VALUES(@id,@h,@b,@u,1)",("id",membership),("h",hospital),("b",branch),("u",user));
-            await Execute("INSERT INTO iam.UserRoles(MembershipId,RoleId,HospitalId) VALUES(@m,@r,@h)",("m",membership),("r",role),("h",hospital));
-            if (roleName == "Doctor") { var practitioner = RequireGuid("CAREFLOW_PRACTITIONER_ID"); if (await Execute("UPDATE catalog.Practitioners SET UserId=@u WHERE Id=@p AND HospitalId=@h AND UserId IS NULL",("u",user),("p",practitioner),("h",hospital)) != 1) throw new InvalidOperationException("Practitioner not found or already linked."); }
-            await Execute("INSERT INTO audit.AuditEvents(Id,HospitalId,BranchId,ActorId,ActorName,Action,Entity,EntityId,Reason) VALUES(NEWID(),@h,@b,@actor,'Deployment operator','iam.admin.provisioned','User',@actor,'Explicit command-line provisioning')",("h",hospital),("b",branch),("actor",user));
+            await Execute("IF NOT EXISTS(SELECT 1 FROM iam.Roles WHERE Id=@r) INSERT INTO iam.Roles(Id,HospitalId,Name,Description) VALUES(@r,@h,@name,'Configurable scoped role; clinical signing requires qualified membership')", ("r", role), ("h", hospital), ("name", roleName));
+            foreach (var permission in Permissions.For(roleName)) await Execute("IF NOT EXISTS(SELECT 1 FROM iam.RolePermissions WHERE HospitalId=@h AND RoleId=@r AND PermissionKey=@p) INSERT INTO iam.RolePermissions(HospitalId,RoleId,PermissionKey) VALUES(@h,@r,@p)", ("h", hospital), ("r", role), ("p", permission));
+            await Execute("INSERT INTO iam.Users(Id,HospitalId,UserName,DisplayName,PasswordHash,Enabled) VALUES(@id,@h,@u,@name,@hash,1)", ("id", user), ("h", hospital), ("u", username), ("name", name), ("hash", new IdentityPasswordService().Hash(password)));
+            await Execute("INSERT INTO iam.Memberships(Id,HospitalId,BranchId,UserId,Active) VALUES(@id,@h,@b,@u,1)", ("id", membership), ("h", hospital), ("b", branch), ("u", user));
+            await Execute("INSERT INTO iam.UserRoles(MembershipId,RoleId,HospitalId) VALUES(@m,@r,@h)", ("m", membership), ("r", role), ("h", hospital));
+            if (roleName == "Doctor") { var practitioner = RequireGuid("CAREFLOW_PRACTITIONER_ID"); if (await Execute("UPDATE catalog.Practitioners SET UserId=@u WHERE Id=@p AND HospitalId=@h AND UserId IS NULL", ("u", user), ("p", practitioner), ("h", hospital)) != 1) throw new InvalidOperationException("Practitioner not found or already linked."); }
+            await Execute("INSERT INTO audit.AuditEvents(Id,HospitalId,BranchId,ActorId,ActorName,Action,Entity,EntityId,Reason) VALUES(NEWID(),@h,@b,@actor,'Deployment operator','iam.admin.provisioned','User',@actor,'Explicit command-line provisioning')", ("h", hospital), ("b", branch), ("actor", user));
             await tx.CommitAsync(); Console.WriteLine($"User provisioned: {user} ({roleName}). Enable MFA through your enterprise identity provider before remote production access.");
         }
         catch { await tx.RollbackAsync(); throw; }

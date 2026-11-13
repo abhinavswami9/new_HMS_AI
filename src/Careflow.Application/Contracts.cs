@@ -30,7 +30,7 @@ public sealed record UserSession(Guid Id, Guid UserId, string TokenHash, DateTim
 public sealed record AuthResult(Principal Principal, string Token, DateTimeOffset ExpiresAt);
 public sealed record WorkspaceResult(Workspace Workspace, bool Truncated);
 
-public interface IHospitalStore
+public partial interface IHospitalStore
 {
     Task<Workspace> LoadAsync(Scope scope, int limit, CancellationToken ct);
     Task<Patient?> FindPatientAsync(Guid id, CancellationToken ct);

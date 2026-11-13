@@ -46,6 +46,10 @@ import { Appointments } from "./pages/Appointments";
 import { Consultations, ConsultationDetail } from "./pages/Consultations";
 import { Billing } from "./pages/Billing";
 import { Administration, Modules } from "./pages/Administration";
+import { Inpatient } from "./pages/Inpatient";
+import { Nursing } from "./pages/Nursing";
+import { Pharmacy } from "./pages/Pharmacy";
+import { Laboratory } from "./pages/Laboratory";
 const mainNav = [
   { to: "/", label: "Overview", icon: LayoutDashboard },
   { to: "/patients", label: "Patients", icon: Users },
@@ -53,11 +57,35 @@ const mainNav = [
   { to: "/consultations", label: "Consultations", icon: Stethoscope },
   { to: "/billing", label: "Billing", icon: Receipt },
 ];
-const clinicalNav = [
-  { label: "Inpatient", icon: HeartPulse },
-  { label: "Laboratory", icon: FlaskConical },
-  { label: "Radiology", icon: ScanLine },
-  { label: "Pharmacy", icon: Pill },
+const careNav = [
+  {
+    to: "/inpatient",
+    label: "Inpatient",
+    icon: HeartPulse,
+    module: "ipd",
+    permission: "ipd.read",
+  },
+  {
+    to: "/nursing",
+    label: "Nursing",
+    icon: ClipboardList,
+    module: "nursing",
+    permission: "nursing.read",
+  },
+  {
+    to: "/pharmacy",
+    label: "Pharmacy",
+    icon: Pill,
+    module: "pharmacy",
+    permission: "pharmacy.read",
+  },
+  {
+    to: "/laboratory",
+    label: "Laboratory",
+    icon: FlaskConical,
+    module: "laboratory",
+    permission: "lab.read",
+  },
 ];
 export default function App() {
   return (
@@ -67,6 +95,26 @@ export default function App() {
       </AppProvider>
     </BrowserRouter>
   );
+}
+function CareRoute({
+  module,
+  permission,
+  children,
+}: {
+  module: string;
+  permission: string;
+  children: React.ReactNode;
+}) {
+  const { data, user } = useApp();
+  const enabled = data.modules.some((m) => m.key === module && m.enabled);
+  if (!enabled || !user.permissions.includes(permission))
+    return (
+      <Empty
+        title="Module unavailable"
+        description="This module is disabled for your branch or your role does not have access."
+      />
+    );
+  return <>{children}</>;
 }
 function Shell() {
   const { user, data, demo, toast, switchRole, logout } = useApp();
@@ -110,9 +158,16 @@ function Shell() {
       ? "Patient chart"
       : location.pathname.startsWith("/consultations/")
         ? "Clinical record"
-        : location.pathname === "/modules"
-          ? "Modules"
-          : "Administration");
+        : careNav.find((n) => n.to === location.pathname)?.label
+          ? careNav.find((n) => n.to === location.pathname)!.label
+          : location.pathname === "/modules"
+            ? "Modules"
+            : "Administration");
+  const visibleCareNav = careNav.filter(
+    (n) =>
+      data.modules.some((m) => m.key === n.module && m.enabled) &&
+      user.permissions.includes(n.permission),
+  );
   const visibleNav = mainNav.filter(
     (n) =>
       (n.to !== "/billing" || user.permissions.includes("billing.read")) &&
@@ -179,20 +234,30 @@ function Shell() {
           ))}
         </nav>
         <div className="nav-section-label clinical-label">
-          CLINICAL MODULES<span>04</span>
+          CLINICAL MODULES
+          <span>{String(visibleCareNav.length + 1).padStart(2, "0")}</span>
         </div>
         <nav>
-          {clinicalNav.map((n) => (
-            <button
-              key={n.label}
-              className="nav-item unavailable"
-              onClick={() => navigate("/modules")}
+          {visibleCareNav.map((n) => (
+            <NavLink
+              key={n.to}
+              to={n.to}
+              className={({ isActive }) =>
+                `nav-item ${isActive ? "active" : ""}`
+              }
             >
               <n.icon size={19} strokeWidth={1.7} />
               <span>{n.label}</span>
-              <span className="soon-label">Soon</span>
-            </button>
+            </NavLink>
           ))}
+          <button
+            className="nav-item unavailable"
+            onClick={() => navigate("/modules")}
+          >
+            <ScanLine size={19} strokeWidth={1.7} />
+            <span>Radiology</span>
+            <span className="soon-label">Soon</span>
+          </button>
         </nav>
         <div className="nav-section-label clinical-label">MANAGE</div>
         <nav>
@@ -247,6 +312,10 @@ function Shell() {
                     "Receptionist",
                     "Billing Staff",
                     "Nurse",
+                    "Nurse 2",
+                    "Pharmacist",
+                    "Lab Technician",
+                    "Pathologist",
                   ].map((r) => (
                     <option key={r}>{r}</option>
                   ))}
@@ -323,7 +392,7 @@ function Shell() {
             <ShieldCheck size={13} />
             <span>Synthetic preview · no real patient data</span>
             <span className="demo-ribbon-right">
-              Phase 1 <span>·</span> Connected to the Careflow API
+              Phase 2 <span>·</span> Connected to the Careflow API
             </span>
           </div>
         )}
@@ -336,6 +405,38 @@ function Shell() {
             <Route path="/consultations" element={<Consultations />} />
             <Route path="/consultations/:id" element={<ConsultationDetail />} />
             <Route path="/billing" element={<Billing />} />
+            <Route
+              path="/inpatient"
+              element={
+                <CareRoute module="ipd" permission="ipd.read">
+                  <Inpatient />
+                </CareRoute>
+              }
+            />
+            <Route
+              path="/nursing"
+              element={
+                <CareRoute module="nursing" permission="nursing.read">
+                  <Nursing />
+                </CareRoute>
+              }
+            />
+            <Route
+              path="/pharmacy"
+              element={
+                <CareRoute module="pharmacy" permission="pharmacy.read">
+                  <Pharmacy />
+                </CareRoute>
+              }
+            />
+            <Route
+              path="/laboratory"
+              element={
+                <CareRoute module="laboratory" permission="lab.read">
+                  <Laboratory />
+                </CareRoute>
+              }
+            />
             <Route path="/modules" element={<Modules />} />
             <Route path="/administration" element={<Administration />} />
             <Route

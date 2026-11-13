@@ -26,14 +26,28 @@ The executable initial migration is `database/migrations/0001_phase1.sql`. It cr
 
 Critical constraints include unique hospital/UHID, scoped appointment slot, active queue token, invoice number, session token hash and payment-reference idempotency. Clinical/billing writes include a transaction-scoped audit event. Signed document hashes bind canonical content; signing keys/certificates belong in a dedicated signer, not a database plaintext column.
 
+## Implemented Phase 2 schema
+
+Migration `database/migrations/0002_phase2_care.sql` adds the care schemas below. It seeds global Phase 2 permissions and an **unapproved** `nursing.escalation` policy per branch; hospitals must approve the policy through their governed process before nursing observations are accepted. It does not seed synthetic patients, beds, stock or lab tests.
+
+| Schema   | Tables                                                                            | Purpose                                                  |
+| -------- | --------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| ipd      | Beds, Admissions, BedEvents                                                       | ADT, bed readiness, occupancy history                    |
+| nurse    | NursingNotes, MedicationOrders, Administrations, ShiftHandovers, HandoverPatients | nursing care, eMAR, named handover                       |
+| pharmacy | StockBatches, StockMovements, Dispenses, DispenseLines, DispenseBatches           | batch stock ledger and prescription/admission dispensing |
+| lab      | Tests, Orders, Results                                                            | LIS order/specimen/result lifecycle                      |
+| alerts   | CriticalAlerts                                                                    | nursing/laboratory critical alerts                       |
+
+Phase 2 constraints include filtered unique active admission per patient and per bed, composite hospital/branch foreign keys, stock batch versioning, dispensing request-hash idempotency scoped to hospital/branch/actor, lab barcode/accession uniqueness, and immutability triggers for discharged admissions, nursing notes, administrations, stock movements, dispenses, authorized/rejected lab orders, authorized results and acknowledged alerts.
+
 ## Full enterprise logical catalog (planned migrations)
 
 These are deliberately separated from implemented tables. Each future module adds its own migration and contract tests. Shared keys/ownership/audit conventions apply throughout.
 
-- **IPD:** Wards, Rooms, Beds, BedAssignments, BedStatusEvents, AdmissionRequests, Admissions, CareTeamAssignments, Transfers, DischargePlans, DischargeSummaries. Unique active bed assignment and patient admission are filtered constraints; exclusion intervals are enforced transactionally.
-- **Nursing:** Assessments, Notes, Observations, IntakeOutput, MedicationOrders, MedicationSchedules, Administrations, Handovers, HandoverPatients, Alerts, Escalations. Administration references order/patient/drug/batch/administrator and administration instant.
-- **Pharmacy:** Dispenses, DispenseItems, StockBatches, StockMovements, Returns, ReturnItems, Suppliers, PurchaseOrders, PurchaseOrderLines, GoodsReceipts, GoodsReceiptLines. Stock movements are append-only with batch/location/quantity/valuation reference.
-- **LIS:** Tests, Profiles, ProfileTests, Packages, PackageTests, Orders, OrderTests, Specimens, SpecimenEvents, AnalyzerMappings, QcRuns, QcResults, Results, ResultVersions, Validations, Reports, ReportVersions, CriticalAlerts, AlertAcknowledgments. Separate order/test/specimen/result identities; reference interval method/specimen/age/sex/unit and effective date.
+- **IPD extensions:** Wards, Rooms, BedAssignments, AdmissionRequests, CareTeamAssignments, Transfers, DischargePlans. Core Beds/Admissions/BedEvents are implemented in Phase 2; unique active bed assignment and patient admission are filtered constraints.
+- **Nursing extensions:** CarePlans, MedicationSchedules, Escalations. Core NursingNotes, MedicationOrders, Administrations, ShiftHandovers and HandoverPatients are implemented in Phase 2.
+- **Pharmacy extensions:** Returns, ReturnItems, Suppliers, PurchaseOrders, PurchaseOrderLines, GoodsReceipts, GoodsReceiptLines. Core StockBatches, StockMovements, Dispenses, DispenseLines and DispenseBatches are implemented in Phase 2.
+- **LIS extensions:** Profiles, ProfileTests, Packages, PackageTests, OrderTests, SpecimenEvents, AnalyzerMappings, QcRuns, QcResults, ResultVersions, Reports, ReportVersions, AlertAcknowledgments. Core Tests, Orders, Results and CriticalAlerts are implemented in Phase 2; specimen identity is currently carried on the order.
 - **RIS:** Modalities, Orders, Appointments, Studies, ModalityWorklist, ReportTemplates, Reports, ReportVersions, CriticalFindings. StudyInstanceUID and accession are distinct identifiers; no image BLOB in OLTP.
 - **Emergency:** Registrations, TriageAssessments, Observations, Dispositions, Transfers; linked encounter, unknown identity reconciliation and triage scale version.
 - **OT:** Theatres, Bookings, Schedules, TeamAssignments, PreopAssessments, Checklists, ChecklistResponses, TimeEvents, AnaesthesiaNotes, OperationNotes, Implants, Consumables, RecoveryEvents. Procedure/site/laterality and implant lot/serial trace.

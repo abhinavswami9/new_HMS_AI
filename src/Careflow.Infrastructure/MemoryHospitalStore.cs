@@ -22,13 +22,18 @@ public sealed class MemoryUnitOfWork(DemoData initial) : IUnitOfWork, IDisposabl
             data.Invoices = candidate.Invoices; data.Modules = candidate.Modules; data.Audit = candidate.Audit;
             data.Sessions = candidate.Sessions; data.Users = candidate.Users; data.Sequences = candidate.Sequences;
             data.Logins = candidate.Logins; data.Outbox = candidate.Outbox;
+            data.Beds = candidate.Beds; data.Admissions = candidate.Admissions; data.BedEvents = candidate.BedEvents;
+            data.NursingNotes = candidate.NursingNotes; data.MedicationOrders = candidate.MedicationOrders; data.Administrations = candidate.Administrations;
+            data.Handovers = candidate.Handovers; data.StockBatches = candidate.StockBatches; data.StockMovements = candidate.StockMovements; data.Dispenses = candidate.Dispenses;
+            data.LabTests = candidate.LabTests; data.LabOrders = candidate.LabOrders; data.LabResults = candidate.LabResults; data.CriticalAlerts = candidate.CriticalAlerts;
+            data.Policies = candidate.Policies;
             return result;
         }
         finally { gate.Release(); }
     }
     public void Dispose() => gate.Dispose();
 }
-public sealed class MemoryHospitalStore(DemoData data, Scope scope) : IHospitalStore
+public sealed partial class MemoryHospitalStore(DemoData data, Scope scope) : IHospitalStore
 {
     private static T Missing<T>() => throw new DomainException("not_found", "Record not found in this hospital.", 404);
     private static void Conflict() => throw new DomainException("concurrency", "Record version changed. Refresh before retrying.", 409);

@@ -128,6 +128,8 @@ Additional explicit permissions: `patient.merge`, `patient.breakglass`, `billing
 
 ## Phase 2
 
+> Delivery boundary: the initial Phase 2 vertical slice is implemented. See [PHASE2_STATUS.md](PHASE2_STATUS.md) for delivered behavior and remaining enterprise gates. The specifications below remain the target contract.
+
 ### 9. IPD / ADT
 
 1. **Architecture:** Admission module, bed allocation saga with compensating reservation, care-team contracts.

@@ -314,7 +314,13 @@ export function PatientDetail() {
         </div>
       )}
       <div className="tabs">
-        {["Overview", "Medical record", "Appointments", "Billing"].map((t) => (
+        {[
+          "Overview",
+          "Medical record",
+          "Care history",
+          "Appointments",
+          "Billing",
+        ].map((t) => (
           <button
             key={t}
             className={tab === t ? "active" : ""}
@@ -325,6 +331,187 @@ export function PatientDetail() {
           </button>
         ))}
       </div>
+      {tab === "Care history" && (
+        <div className="care-main">
+          <section className="card">
+            <div className="card-header">
+              <h2>Admissions & discharge</h2>
+            </div>
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Admission</th>
+                    <th>Bed</th>
+                    <th>Status</th>
+                    <th>Admitted</th>
+                    <th>Discharge summary</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {chart.care.admissions.map((a) => (
+                    <tr key={a.id}>
+                      <td>
+                        {a.number}
+                        <small className="cell-small">{a.reason}</small>
+                      </td>
+                      <td>
+                        {data.care.beds.find((b) => b.id === a.bedId)?.number ||
+                          a.bedId}
+                      </td>
+                      <td>
+                        <Badge status={a.status} />
+                      </td>
+                      <td>{shortDate(a.admittedAt)}</td>
+                      <td className="note-cell">{a.dischargeSummary || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {!chart.care.admissions.length && (
+              <Empty
+                title="No inpatient history"
+                description="Admissions and discharge summaries will appear here."
+              />
+            )}
+          </section>
+          <section className="card">
+            <div className="card-header">
+              <h2>Nursing notes</h2>
+            </div>
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Recorded</th>
+                    <th>Type</th>
+                    <th>Note</th>
+                    <th>Pain / fall</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {chart.care.nursingNotes.map((n) => (
+                    <tr key={n.id}>
+                      <td>
+                        {shortDate(n.createdAt)} {time(n.createdAt)}
+                      </td>
+                      <td>
+                        <Badge status={n.kind} />
+                      </td>
+                      <td className="note-cell">{n.text}</td>
+                      <td>
+                        {n.painScore ?? "—"} / {n.fallRisk}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+          <section className="card">
+            <div className="card-header">
+              <h2>Medication orders & dispensing</h2>
+            </div>
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Medicine</th>
+                    <th>Dose</th>
+                    <th>Frequency</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {chart.care.medicationOrders.map((o) => (
+                    <tr key={o.id}>
+                      <td>{o.name}</td>
+                      <td>
+                        {o.dose} · {o.route}
+                      </td>
+                      <td>{o.frequency}</td>
+                      <td>
+                        <Badge status={o.status} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Dispense</th>
+                    <th>Setting</th>
+                    <th>Lines</th>
+                    <th>Created</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {chart.care.dispenses.map((d) => (
+                    <tr key={d.id}>
+                      <td>{d.number}</td>
+                      <td>
+                        <Badge status={d.kind} />
+                      </td>
+                      <td>
+                        {d.lines
+                          .map((l) => `${l.name} × ${l.quantity}`)
+                          .join(", ")}
+                      </td>
+                      <td>{shortDate(d.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+          <section className="card">
+            <div className="card-header">
+              <h2>Laboratory orders & results</h2>
+            </div>
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Order</th>
+                    <th>Test</th>
+                    <th>Status</th>
+                    <th>Result</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {chart.care.labOrders.map((o) => {
+                    const r = chart.care.labResults
+                      .filter((x) => x.orderId === o.id)
+                      .sort((a, b) => b.version - a.version)[0];
+                    return (
+                      <tr key={o.id}>
+                        <td>
+                          {o.number}
+                          <small className="cell-small">
+                            {o.accession || ""}
+                          </small>
+                        </td>
+                        <td>
+                          {data.care.labTests.find((t) => t.id === o.testId)
+                            ?.name || o.testId}
+                        </td>
+                        <td>
+                          <Badge status={o.status} />
+                        </td>
+                        <td>{r ? `${r.value} ${r.unit} (${r.flag})` : "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      )}
       {tab === "Overview" && (
         <div className="detail-grid">
           <div>

@@ -19,6 +19,8 @@
   --secondary: #65727d;
   --border: #e8ecef;
   --teal: #087f75;
+  --primary: #087f75;
+  --green: #3f8f63;
   --teal-dark: #086b63;
   --teal-soft: #eaf6f3;
   --blue: #4d87b4;
@@ -2969,6 +2971,8 @@ input[type="datetime-local"] {
   --secondary: #adbec4;
   --border: #2c3c43;
   --teal: #69b9aa;
+  --primary: #69b9aa;
+  --green: #7fbf9a;
   --teal-dark: #167f73;
   --teal-soft: #243e39;
   --blue-soft: #263b49;
@@ -4108,5 +4112,201 @@ input[type="datetime-local"] {
   }
   .receipt-history {
     break-inside: avoid;
+  }
+}
+
+/* Phase 2 care workspaces */
+.btn.tiny {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.78rem;
+  gap: 0.3rem;
+}
+.row-actions {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.note-cell {
+  max-width: 320px;
+  white-space: normal;
+  color: var(--text);
+}
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.25rem 1.25rem 0.75rem;
+}
+.section-heading h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+.section-heading p {
+  margin: 0.25rem 0 0;
+}
+.subsection-title {
+  margin: 1rem 1.25rem 0.5rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.bed-board-card {
+  padding-bottom: 1.25rem;
+}
+.ward-block {
+  padding: 0 1.25rem;
+  margin-top: 1rem;
+}
+.ward-block h3 {
+  margin: 0 0 0.65rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.bed-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+.bed-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.85rem;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.bed-card.bed-available {
+  border-color: color-mix(in srgb, var(--green) 35%, var(--border));
+}
+.bed-card.bed-occupied {
+  border-color: color-mix(in srgb, var(--blue) 35%, var(--border));
+}
+.bed-card.bed-cleaning {
+  border-color: color-mix(in srgb, var(--amber) 45%, var(--border));
+}
+.bed-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+.bed-person {
+  margin: 0.25rem 0;
+}
+.bed-empty {
+  min-height: 2.2rem;
+  margin: 0.25rem 0;
+}
+.bed-actions {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+.care-layout {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+.care-patient-list {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.care-patient-list h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+.care-patient {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+  text-align: left;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 0.65rem;
+  cursor: pointer;
+}
+.care-patient.selected {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+}
+.care-patient span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.care-patient small {
+  color: var(--muted);
+}
+.care-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+.alert-banner {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--amber) 50%, var(--border));
+  background: color-mix(in srgb, var(--amber) 12%, var(--surface));
+  border-radius: 14px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+}
+.alert-banner p {
+  margin: 0.15rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.checkbox-list {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0.75rem 0;
+}
+.checkbox-list label {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.9rem;
+}
+.dispense-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px auto;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+.report-result {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 1rem 0;
+}
+.report-result strong {
+  font-size: 1.6rem;
+}
+@media (max-width: 1000px) {
+  .care-layout {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 640px) {
+  .dispense-line {
+    grid-template-columns: 1fr;
+  }
+  .bed-grid {
+    grid-template-columns: 1fr;
   }
 }

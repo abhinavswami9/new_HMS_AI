@@ -55,6 +55,9 @@ if (demo)
 }
 else builder.Services.AddSingleton<IUnitOfWork>(new SqlUnitOfWork(database!));
 builder.Services.AddSingleton<HospitalService>();
+builder.Services.AddSingleton<InpatientService>();
+builder.Services.AddSingleton<PharmacyService>();
+builder.Services.AddSingleton<LaboratoryService>();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -81,7 +84,7 @@ root.MapGet("/config", async (HttpContext context, HospitalService service, Canc
 {
     var token = context.Request.Cookies["careflow.session"];
     var principal = token is null ? null : await service.Authenticate(token, HospitalId(), BranchId(), ct);
-    return Results.Ok(new { demo, product = "Careflow HIS", phase = 1, principal });
+    return Results.Ok(new { demo, product = "Careflow HIS", phase = 2, principal });
 });
 Guid HospitalId() => Guid.TryParse(builder.Configuration["Careflow:HospitalId"], out var id) ? id : SeedIds.Hospital;
 Guid BranchId() => Guid.TryParse(builder.Configuration["Careflow:BranchId"], out var id) ? id : SeedIds.Branch;
@@ -94,7 +97,7 @@ root.MapPost("/auth/demo", async (DemoInput? input, HttpContext context, Hospita
 {
     if (!demo) return Results.NotFound();
     var role = input?.Role ?? "Hospital Admin";
-    var username = role switch { "Doctor" => "doctor", "Receptionist" => "reception", "Billing Staff" => "billing", "Nurse" => "nurse", "Hospital Admin" => "admin", _ => "" };
+    var username = role switch { "Doctor" => "doctor", "Receptionist" => "reception", "Billing Staff" => "billing", "Nurse" => "nurse", "Nurse 2" => "nurse2", "Pharmacist" => "pharmacist", "Lab Technician" => "labtech", "Pathologist" => "pathologist", "Hospital Admin" => "admin", _ => "" };
     if (username == "") return Results.BadRequest(new { title = "Unknown preview role." });
     var old = context.Request.Cookies["careflow.session"]; if (old is not null) await service.Logout(old, HospitalId(), BranchId(), ct);
     var auth = await service.Login(new LoginInput(username, "Preview!2026"), SeedIds.Hospital, SeedIds.Branch, ct, context.Connection.RemoteIpAddress?.ToString()); SetCookie(context, auth); return Results.Ok(auth.Principal);
@@ -149,6 +152,7 @@ root.MapPost("/invoices", async (InvoiceInput input, HttpContext context, Hospit
 root.MapPost("/invoices/{id:guid}/issue", async (Guid id, VersionInput input, HttpContext context, HospitalService service, CancellationToken ct) => Results.Ok(await service.IssueInvoice(Scope(context), id, input.Version, ct)));
 root.MapPost("/invoices/{id:guid}/payments", async (Guid id, PaymentInput input, HttpContext context, HospitalService service, CancellationToken ct) => Results.Ok(await service.Pay(Scope(context), id, input, ct)));
 root.MapPut("/modules/{key}", async (string key, ModuleInput input, HttpContext context, HospitalService service, CancellationToken ct) => Results.Ok(await service.SetModule(Scope(context), key, input.Enabled, input.Reason, ct)));
+CareEndpoints.Map(root);
 root.MapGet("/admin/roles", (HttpContext context) => { Scope(context).Require(Permissions.Admin); return Results.Ok(Permissions.Roles.Select(r => new { role = r.Key, permissions = r.Value })); });
 app.Run();
 public sealed record DemoInput(string Role = "Hospital Admin");

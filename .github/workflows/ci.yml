@@ -44,6 +44,8 @@ jobs:
           test "$ready" = true
       - name: HTTP security checks
         run: python tests/api_smoke.py
+      - name: Phase 2 HTTP care checks
+        run: python tests/care_smoke.py
       - name: Browser workflows
         working-directory: src/Careflow.Web
         run: npm run test:e2e

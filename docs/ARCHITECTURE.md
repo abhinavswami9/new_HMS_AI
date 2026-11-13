@@ -2,9 +2,9 @@
 
 ## 1. Scope and delivery status
 
-Careflow is a proposed multi-hospital HIS + EMR + LIS + RIS platform. This repository begins at an empty README. The first delivery establishes the architecture, SQL Server schema, .NET solution, and a usable Phase 1 clinical workspace. **It is not a certified or deployment-ready hospital system.** Real deployment requires the release gates in ROADMAP.md, clinical validation, infrastructure integration tests, and a hospital-specific security/privacy review.
+Careflow is a proposed multi-hospital HIS + EMR + LIS + RIS platform. This repository begins at an empty README. The delivery establishes the architecture, SQL Server schema, .NET solution, and usable Phase 1/Phase 2 clinical workspaces. **It is not a certified or deployment-ready hospital system.** Real deployment requires the release gates in ROADMAP.md, clinical validation, infrastructure integration tests, and a hospital-specific security/privacy review.
 
-The browser preview is an explicitly labeled, synthetic-data workspace. Browser-local persistence demonstrates workflows; it is not a secure medical-record store. Production browser code must use the authenticated API, never the demo store. No actual ABDM, DICOM, payment, messaging, analyzer, or video connection is claimed.
+The browser preview is an explicitly labeled, synthetic-data workspace backed by the real .NET API with a development-only in-memory adapter. It is not a secure medical-record store. Production browser code uses the authenticated API and SQL Server adapter; the demo adapter is refused in Production. No actual ABDM, DICOM, payment, messaging, analyzer, or video connection is claimed.
 
 ## 2. Architectural decisions
 

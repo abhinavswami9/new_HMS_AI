@@ -2,7 +2,7 @@
 
 A modular hospital information system foundation: **ASP.NET Core / .NET 10, SQL Server, React + TypeScript**, with a responsive clinical workspace and an explicitly synthetic development preview.
 
-> **Delivery status:** architecture + an initial Phase 1 vertical slice. This is not a certified, production-ready hospital platform. The live preview uses synthetic records and a development-only in-memory adapter. SQL Server schema/adapters are included but have not been executed against SQL Server in this sandbox. Do not enter real patient information into the preview.
+> **Delivery status:** architecture + Phase 1 and Phase 2 vertical slices. This is not a certified, production-ready hospital platform. The live preview uses synthetic records and a development-only in-memory adapter behind the real .NET API. SQL Server schema/adapters are included but have not been executed against SQL Server in this sandbox. Do not enter real patient information into the preview.
 
 ## Start here
 
@@ -13,6 +13,7 @@ A modular hospital information system foundation: **ASP.NET Core / .NET 10, SQL 
 | [Database architecture](docs/DATABASE.md)              | implemented schema, enterprise logical catalog, relationships, indexing and deployment controls           |
 | [Roadmap](docs/ROADMAP.md)                             | five-phase delivery plan, current scope and production release gates                                      |
 | [Phase 1 boundaries](docs/PHASE1_STATUS.md)            | exactly what works, what is partial and what remains planned                                              |
+| [Phase 2 boundaries](docs/PHASE2_STATUS.md)            | IPD/ADT, beds, nursing/eMAR, pharmacy and LIS delivery boundary                                           |
 | [Deployment runbook](docs/DEPLOYMENT.md)               | SQL migration, administrator/clinician provisioning, configuration and release checks                     |
 
 ## Working Phase 1 slice
@@ -25,6 +26,15 @@ A modular hospital information system foundation: **ASP.NET Core / .NET 10, SQL 
 - Server-priced draft invoices, controlled issue, offline payment recording, idempotent payment references and printable receipts.
 - Branch module settings with audit reasons; later-phase modules cannot be activated by a toggle.
 - Responsive desktop/mobile navigation, patient search, dark/light appearance, role-aware views and honest unavailable-module states.
+
+## Working Phase 2 slice
+
+- Inpatient admission/transfer/discharge with a visual bed board, unique active admission/bed occupancy, cleaning/maintenance states and immutable discharge summaries.
+- Nursing assessments, vitals, intake/output, pain/fall risk, configurable escalation alerts, inpatient medication orders, eMAR administrations with batch stock decrement and named shift handover acknowledgement.
+- Pharmacy batch/expiry stock receipt, append-only stock movements, FEFO dispensing, OPD signed-prescription linkage, IPD active-medication-order linkage and request-hash idempotency.
+- LIS test ordering, barcode/accession collection, processing, rejection, result entry, second-person technical validation, pathologist authorization, critical alerts and immutable authorized reports.
+- Patient chart care-history tab with permission-filtered admissions, nursing notes, medication orders, dispenses and lab orders/results.
+- Branch module settings now cover Phase 2; Phase 3+ modules still cannot be activated by a toggle.
 
 The preview’s **Doctor** role is Dr. Anjali Sharma. The initial **Hospital Admin** role can manage registration, queues, billing and configuration but cannot sign clinical records. Use the role selector at the bottom of the sidebar to explore permissions. This selector exists only in Demo mode.
 
@@ -40,7 +50,8 @@ src/Careflow.Web/             React workspace, design system and browser tests
 database/migrations/         versioned SQL Server migration
 database/examples/           optional development configuration; not production master data
 tests/Careflow.Tests/         executable application/domain tests
-tests/api_smoke.py            loopback-only HTTP security/workflow checks
+tests/api_smoke.py            loopback-only Phase 1 HTTP security/workflow checks
+tests/care_smoke.py           loopback-only Phase 2 HTTP care workflow checks
 docs/                        architecture, module contracts and runbooks
 ```
 
@@ -65,7 +76,7 @@ npm run dev
 
 Open `http://localhost:5173`. Vite proxies `/api` to the API; browser code never connects directly to a backend localhost URL. The preview binds to `0.0.0.0` for the Arena live preview and permits the proxied `.e2b.app` host. Demo data resets when the API restarts. The browser stores only the theme preference, not medical records.
 
-Demo login accounts are `admin`, `doctor`, `reception`, `billing`, and `nurse`; the development password is `Preview!2026`. These accounts are never created by the SQL migration. Production refuses Demo mode when `ASPNETCORE_ENVIRONMENT=Production`.
+Demo login accounts are `admin`, `doctor`, `reception`, `billing`, `nurse`, `nurse2`, `pharmacist`, `labtech`, `labtech2` and `pathologist`; the development password is `Preview!2026`. These accounts are never created by the SQL migration. Production refuses Demo mode when `ASPNETCORE_ENVIRONMENT=Production`.
 
 ### Restricted-network SDK build
 
@@ -91,7 +102,7 @@ See the [deployment runbook](docs/DEPLOYMENT.md). In outline:
 ## Tests and verification
 
 ```bash
-# Application/domain tests (22 checks)
+# Application/domain tests (40 checks)
 dotnet run --project tests/Careflow.Tests
 
 # Frontend unit tests and production bundle
@@ -102,7 +113,10 @@ npm run build
 # With both demo processes running: HTTP security checks (18 checks)
 python tests/api_smoke.py
 
-# Browser tests (2 workflows); install a Playwright Chromium browser first
+# Phase 2 HTTP care workflow checks (20 checks)
+python tests/care_smoke.py
+
+# Browser tests (3 workflows); install a Playwright Chromium browser first
 npx playwright install chromium
 npm run test:e2e
 ```
@@ -111,6 +125,6 @@ For a preinstalled browser, set `CHROMIUM_EXECUTABLE_PATH`. Browser tests create
 
 ## Safety and scope
 
-Basic allergy name matching is a development guard, **not** a comprehensive allergy/drug-interaction engine. Electronic sign-off is not a certificate-based digital signature. Orders are recorded but LIS/RIS fulfillment is not connected. Payments are recorded manually; no gateway charges a customer. Consent/documents/ABHA, patient merge, MFA/OIDC, schedule capacity templates, refunds/discount approvals, addenda and the remaining enterprise workflows are explicitly tracked in the Phase 1 status and roadmap.
+Basic allergy name matching is a development guard, **not** a comprehensive allergy/drug-interaction engine. Electronic sign-off is not a certificate-based digital signature. OPD investigation orders are recorded; LIS fulfillment is implemented as a separate laboratory worklist, while RIS fulfillment is not connected. Payments are recorded manually; no gateway charges a customer. Consent/documents/ABHA, patient merge, MFA/OIDC, schedule capacity templates, refunds/discount approvals, addenda and the remaining enterprise workflows are explicitly tracked in the Phase 1/Phase 2 status documents and roadmap.
 
 No NABH/NABL/ABDM/DICOM certification or conformance is claimed. Production readiness requires the documented release gates, hospital-specific clinical governance, privacy review, real integration testing and operational validation.

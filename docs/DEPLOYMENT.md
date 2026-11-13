@@ -2,7 +2,7 @@
 
 ## 1. Preconditions
 
-This runbook is for a qualified deployment team. The repository is an initial Phase 1 slice, not a release candidate. Complete PHASE1_STATUS.md and ROADMAP.md gates before handling real patient data.
+This runbook is for a qualified deployment team. The repository contains Phase 1 and Phase 2 slices, not a release candidate. Complete PHASE1_STATUS.md, PHASE2_STATUS.md and ROADMAP.md gates before handling real patient data.
 
 - .NET 10 SDK on the build host; supported runtime on the server.
 - SQL Server 2022+ with encrypted connections and backups.
@@ -50,11 +50,11 @@ dotnet run --project src/Careflow.Api -- migrate
 
 The runner reads `ConnectionStrings__Careflow`, creates `dbo.SchemaMigrations` if needed, executes unapplied migration batches in a transaction and records a SHA-256 checksum. An already-applied migration with changed content is rejected. Correct mistakes with a new forward migration; do not edit applied history.
 
-Migration 0001 creates schema and global permission/module catalog only. It does not insert patients, practitioners, prices, medicines or usable credentials.
+Migrations 0001 and 0002 create schema and global permission/module catalog only. Migration 0002 also seeds an unapproved `nursing.escalation` policy per branch; approve it through the hospital policy process before enabling nursing observations. The migrations do not insert patients, practitioners, prices, medicines, beds, stock, lab tests or usable credentials.
 
 ## 5. Organization and catalog
 
-Apply approved organization/branch/department/module/practitioner/service/price/formulary configuration using your governed deployment process. For a disposable development database only, `database/examples/phase1_configuration.sql` provides a sample hospital and catalog. It is install-once and is not an approved clinical formulary or price list.
+Apply approved organization/branch/department/module/practitioner/service/price/formulary configuration using your governed deployment process. For a disposable development database only, `database/examples/phase1_configuration.sql` provides a sample hospital and catalog, and `database/examples/phase2_configuration.sql` enables Phase 2 modules with sample beds and lab tests. They are install-once and are not an approved clinical formulary, price list, bed master or reference-interval catalog.
 
 The example IDs are:
 
@@ -74,7 +74,7 @@ Set `CAREFLOW_ADMIN_USERNAME`, `CAREFLOW_ADMIN_NAME`, `CAREFLOW_ADMIN_PASSWORD`,
 dotnet run --project src/Careflow.Api -- provision-user
 ```
 
-For a doctor, set `CAREFLOW_PROVISION_ROLE=Doctor` and `CAREFLOW_PRACTITIONER_ID` to an existing, unlinked practitioner. The command links the qualified practitioner to the user and grants the default doctor permissions. Other default roles are Receptionist, Billing Staff and Nurse. Existing usernames are rejected rather than silently reset. Clear injected password secrets from the deployment environment after use.
+For a doctor, set `CAREFLOW_PROVISION_ROLE=Doctor` and `CAREFLOW_PRACTITIONER_ID` to an existing, unlinked practitioner. The command links the qualified practitioner to the user and grants the default doctor permissions. Other default roles are Receptionist, Billing Staff, Nurse, Pharmacist, Lab Technician and Pathologist. Existing usernames are rejected rather than silently reset. Clear injected password secrets from the deployment environment after use.
 
 Administrative permission does not grant clinical signing. Enterprise MFA/OIDC and credential lifecycle workflows are still required before remote production access.
 
