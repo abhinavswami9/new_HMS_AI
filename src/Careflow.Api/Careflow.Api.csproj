@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="../Careflow.Application/Careflow.Application.csproj" />
+    <ProjectReference Include="../Careflow.Infrastructure/Careflow.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup><Content Include="../../database/migrations/*.sql" Link="migrations/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
+</Project>

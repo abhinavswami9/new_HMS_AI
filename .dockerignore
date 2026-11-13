@@ -1,0 +1,11 @@
+**/bin
+**/obj
+**/node_modules
+**/dist
+.git
+.github
+artifacts
+test-results
+.env*
+*.pfx
+*.p12

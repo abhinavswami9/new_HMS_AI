@@ -1,0 +1,29 @@
+# .NET
+**/bin/
+**/obj/
+*.user
+*.suo
+.vs/
+# Node / frontend
+node_modules/
+dist/
+out/
+*.tsbuildinfo
+# Local secrets and configuration
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+*.pfx
+*.p12
+# Test/generated artifacts
+artifacts/
+test-results/
+playwright-report/
+coverage/
+TestResults/
+# OS/editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

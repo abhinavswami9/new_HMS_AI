@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Careflow.Api/Careflow.Api.csproj" />
+    <Project Path="src/Careflow.Application/Careflow.Application.csproj" />
+    <Project Path="src/Careflow.Domain/Careflow.Domain.csproj" />
+    <Project Path="src/Careflow.Infrastructure/Careflow.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Careflow.Tests/Careflow.Tests.csproj" />
+  </Folder>
+</Solution>
