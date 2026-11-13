@@ -2,7 +2,7 @@
 
 A modular hospital information system foundation: **ASP.NET Core / .NET 10, SQL Server, React + TypeScript**, with a responsive clinical workspace and an explicitly synthetic development preview.
 
-> **Delivery status:** architecture + Phase 1 and Phase 2 vertical slices. This is not a certified, production-ready hospital platform. The live preview uses synthetic records and a development-only in-memory adapter behind the real .NET API. SQL Server schema/adapters are included but have not been executed against SQL Server in this sandbox. Do not enter real patient information into the preview.
+> **Delivery status:** architecture + Phase 1 and Phase 2 vertical slices. This is not a certified, production-ready hospital platform. The live preview uses synthetic records and a development-only in-memory adapter behind the real .NET API. The full product runs as one ASP.NET Core process against SQL Server: the migrations and Phase 1/Phase 2 data paths are exercised against a real SQL Server container in CI (`sql-integration` job) and by `tests/Careflow.SqlTests`. Do not enter real patient information into the preview.
 
 ## Start here
 
@@ -50,6 +50,7 @@ src/Careflow.Web/             React workspace, design system and browser tests
 database/migrations/         versioned SQL Server migration
 database/examples/           optional development configuration; not production master data
 tests/Careflow.Tests/         executable application/domain tests
+tests/Careflow.SqlTests/      SQL Server integration release gate (Phase 1 + Phase 2 data paths)
 tests/api_smoke.py            loopback-only Phase 1 HTTP security/workflow checks
 tests/care_smoke.py           loopback-only Phase 2 HTTP care workflow checks
 docs/                        architecture, module contracts and runbooks
@@ -78,6 +79,22 @@ Open `http://localhost:5173`. Vite proxies `/api` to the API; browser code never
 
 Demo login accounts are `admin`, `doctor`, `reception`, `billing`, `nurse`, `nurse2`, `pharmacist`, `labtech`, `labtech2` and `pathologist`; the development password is `Preview!2026`. These accounts are never created by the SQL migration. Production refuses Demo mode when `ASPNETCORE_ENVIRONMENT=Production`.
 
+## Run the full .NET Core stack (UI + API in one ASP.NET Core process)
+
+The workspace bundle is served by the same ASP.NET Core host as the API (`wwwroot` + SPA fallback), so the deployed product is a single .NET process — React is compiled static content, not a separate runtime.
+
+```bash
+cd src/Careflow.Web
+npm ci
+npm run build          # writes src/Careflow.Web/dist
+cd ../..
+dotnet build           # copies the bundle into the API output as wwwroot
+dotnet run --project src/Careflow.Api -- migrate   # SQL Server mode: apply migrations first
+dotnet run --project src/Careflow.Api
+```
+
+Open `http://localhost:5080` — the hospital workspace and `/api/v1` both come from the .NET host. In `Careflow__Mode=Demo` the `migrate` step is skipped and the same single process serves the UI against the synthetic adapter. The Docker image (`Dockerfile`, default `api` stage) packages exactly this shape; `deploy/nginx.conf` remains an optional split edge (`--target workspace`).
+
 ### Restricted-network SDK build
 
 The normal project references the official `Microsoft.Data.SqlClient` NuGet package. In this sandbox NuGet is unavailable, so compilation uses:
@@ -90,14 +107,14 @@ That property omits the package only for compilation; the provider-independent A
 
 ## SQL Server mode
 
-See the [deployment runbook](docs/DEPLOYMENT.md). In outline:
+The product is **.NET Core + SQL Server** end to end: ASP.NET Core `net10.0` minimal API, provider-independent ADO.NET stores (`Microsoft.Data.SqlClient` in real deployments) and versioned T-SQL migrations. `Careflow:Mode` defaults to `SqlServer`; Demo mode is an explicit, development-only opt-in that Production refuses. See the [deployment runbook](docs/DEPLOYMENT.md). In outline:
 
 1. Provision SQL Server 2022+, a database and least-privilege deployment/application identities.
 2. Set `ConnectionStrings__Careflow`, `Careflow__Mode=SqlServer`, `Careflow__HospitalId`, `Careflow__BranchId`, and the exact `Careflow__PublicOrigin`.
 3. Run `dotnet run --project src/Careflow.Api -- migrate`.
 4. Apply governed organization/catalog configuration. The optional example is development-only.
 5. Use `provision-user` to create an administrator and qualified, practitioner-linked clinical users without hard-coded passwords.
-6. Complete the SQL integration, security, clinical and operational gates before deployment.
+6. Run the SQL integration release gate (`tests/Careflow.SqlTests`) against a disposable copy of the database, then complete the security, clinical and operational gates before deployment.
 
 ## Tests and verification
 
@@ -105,12 +122,15 @@ See the [deployment runbook](docs/DEPLOYMENT.md). In outline:
 # Application/domain tests (40 checks)
 dotnet run --project tests/Careflow.Tests
 
+# SQL Server integration release gate (22 checks; skips without a connection string)
+CAREFLOW_TEST_SQL="Server=...;Database=Careflow;..." dotnet run --project tests/Careflow.SqlTests
+
 # Frontend unit tests and production bundle
 cd src/Careflow.Web
 npm test
 npm run build
 
-# With both demo processes running: HTTP security checks (18 checks)
+# With both demo processes running: HTTP security checks (21 checks)
 python tests/api_smoke.py
 
 # Phase 2 HTTP care workflow checks (20 checks)
@@ -121,7 +141,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-For a preinstalled browser, set `CHROMIUM_EXECUTABLE_PATH`. Browser tests create synthetic records and are intended only for the loopback Demo API. Run HTTP smoke checks and browser workflows sequentially against a fresh demo instance; they share the same synthetic store. SQL migration has also been statically parsed with the TSQL dialect; static parsing is **not** a SQL Server execution/integration test.
+For a preinstalled browser, set `CHROMIUM_EXECUTABLE_PATH`. Browser tests create synthetic records and are intended only for the loopback Demo API. Run HTTP smoke checks and browser workflows sequentially against a fresh demo instance; they share the same synthetic store. CI runs the SQL integration suite (`sql-integration` job) against a real SQL Server 2022 container: migrations apply through the API runner and every Phase 1/Phase 2 store flow executes on SQL Server. Static T-SQL parsing is used as an additional lint only and is never counted as a database integration test.
 
 ## Safety and scope
 

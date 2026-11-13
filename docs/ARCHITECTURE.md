@@ -42,7 +42,7 @@ Staff web / patient portal / future mobile clients
     ABDM / FHIR    HL7 / LIS    DICOMweb/PACS  payment / messaging
 ```
 
-Use a single trusted origin in the preview. Production uses HTTPS and a same-origin reverse proxy; never expose SQL Server to a browser. Private blob storage holds photographs, identity documents, signed PDFs and clinical attachments, with short-lived authorization-checked downloads. DICOM pixels remain in PACS/VNA, not ordinary relational rows.
+Use a single trusted origin in the preview. Production uses HTTPS and a same-origin edge in front of one ASP.NET Core process that serves both the compiled workspace and the API (docs/adr/0007); never expose SQL Server to a browser. Private blob storage holds photographs, identity documents, signed PDFs and clinical attachments, with short-lived authorization-checked downloads. DICOM pixels remain in PACS/VNA, not ordinary relational rows.
 
 ## 4. Solution organization
 

@@ -6,6 +6,7 @@
     <Project Path="src/Careflow.Infrastructure/Careflow.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Careflow.SqlTests/Careflow.SqlTests.csproj" />
     <Project Path="tests/Careflow.Tests/Careflow.Tests.csproj" />
   </Folder>
 </Solution>

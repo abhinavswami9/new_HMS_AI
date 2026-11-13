@@ -83,21 +83,23 @@ Administrative permission does not grant clinical signing. Enterprise MFA/OIDC a
 ```bash
 cd src/Careflow.Web
 npm ci
-npm run build
+npm run build        # writes src/Careflow.Web/dist
+cd ../..
+dotnet publish src/Careflow.Api -c Release
 ```
 
-Container images are provided but were not built in the sandbox (no Docker daemon):
+The publish output carries the workspace bundle in `wwwroot`; the ASP.NET Core host serves the UI and `/api/v1` from one process (SPA fallback, deployment CSP and asset caching included — docs/adr/0007). Container images are provided but were not built in the sandbox (no Docker daemon):
 
 ```bash
-docker build -t careflow-api .
-docker build --target workspace -t careflow-workspace .
+docker build -t careflow-api .                      # single image: UI + API on one ASP.NET Core process
+docker build --target workspace -t careflow-workspace .   # optional nginx edge for split deployments
 ```
 
-Run the API and workspace on a private Docker network with the API reachable as `api:8080`, or serve the generated static bundle through your HTTPS edge and proxy `/api/` and `/health/` to the API. Preserve the public Host and configure the exact origin. Do not expose the Vite development server in production. Browser API calls are same-origin relative URLs. Session cookies are Secure in SQL/production mode. Apply an edge CSP appropriate to the built assets; do not copy the development host allowlist into production.
+For the single-image deployment, put your HTTPS edge in front of `api:8080` and preserve the public Host and exact origin. For the split deployment, run the API and workspace on a private Docker network with the API reachable as `api:8080` and nginx serving the static bundle, or serve the bundle through your HTTPS edge and proxy `/api/` and `/health/` to the API. Do not expose the Vite development server in production. Browser API calls are same-origin relative URLs. Session cookies are Secure in SQL/production mode. The API host already applies an edge-equivalent CSP to UI responses; do not copy the development host allowlist into production.
 
 ## 8. Verification before traffic
 
-1. Run migration against a disposable SQL instance and verify all constraints/triggers.
+1. Run migration against a disposable SQL instance and verify all constraints/triggers, then run the SQL integration release gate: `CAREFLOW_TEST_SQL=... dotnet run --project tests/Careflow.SqlTests` (also executed by the CI `sql-integration` job against SQL Server 2022).
 2. Test login, MFA integration, revocation, CSRF/origin and tenant/branch negative cases.
 3. Register two distinct patients and a duplicate candidate; verify UHID/audit behavior.
 4. Book overlapping slots concurrently; verify one allocation and no duplicate tokens.
@@ -109,4 +111,4 @@ Run the API and workspace on a private Docker network with the API reachable as 
 
 ## 9. Known operational gaps
 
-The outbox is persisted but has no dispatcher yet. Notification/PACS/ABDM/payment adapters are not connected. SQL integration and performance tests remain open. The initial workspace is bounded; complete archive/report pagination is required at scale. Do not interpret a successful health check as completion of these gates.
+The outbox is persisted but has no dispatcher yet. Notification/PACS/ABDM/payment adapters are not connected. SQL performance/load tests remain open (functional integration is covered by the CI `sql-integration` job and `tests/Careflow.SqlTests`). The initial workspace is bounded; complete archive/report pagination is required at scale. Do not interpret a successful health check as completion of these gates.

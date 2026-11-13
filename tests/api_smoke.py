@@ -11,6 +11,8 @@ import http.cookiejar
 
 BASE = os.environ.get('CAREFLOW_URL', 'http://127.0.0.1:5173') + '/api/v1'
 assert 'localhost' in BASE or '127.0.0.1' in BASE, 'Smoke tests are restricted to loopback demo hosts.'
+API_ROOT = os.environ.get('CAREFLOW_API_ROOT', 'http://127.0.0.1:5080')
+assert 'localhost' in API_ROOT or '127.0.0.1' in API_ROOT, 'Smoke tests are restricted to loopback demo hosts.'
 jar = http.cookiejar.CookieJar()
 client = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
 passed = 0
@@ -36,8 +38,23 @@ def check(name, condition):
     passed += 1
     print('PASS', name)
 
+def fetch(path):
+    req = urllib.request.Request(API_ROOT + path, headers={'X-Requested-With': 'Careflow'}, method='GET')
+    try:
+        with urllib.request.build_opener().open(req, timeout=15) as response:
+            return response.status, response.read().decode('utf-8', 'replace'), response.headers
+    except urllib.error.HTTPError as error:
+        return error.code, error.read().decode('utf-8', 'replace'), error.headers
+
 config = call('GET', '/config', authenticated=False)
 check('public config identifies synthetic mode', config[0] == 200 and config[1]['demo'] is True)
+
+status, body, headers = fetch('/')
+check('ASP.NET Core host serves the compiled workspace', status == 200 and 'text/html' in headers.get('Content-Type', '') and 'id="root"' in body)
+status, body, headers = fetch('/workspace/patients/deep-link')
+check('SPA fallback answers deep links with the application shell', status == 200 and 'id="root"' in body)
+status, body, headers = fetch('/api/v1/definitely-not-a-real-endpoint')
+check('unknown API paths return JSON errors, never the SPA shell', status == 401 and 'application/json' in headers.get('Content-Type', '') and 'id="root"' not in body)
 check('unauthenticated workspace is denied', call('GET', '/workspace', authenticated=False)[0] == 401)
 status, user, headers = call('POST', '/auth/demo', {})
 check('demo session has HttpOnly and SameSite cookies', status == 200 and 'httponly' in headers.get('Set-Cookie', '').lower() and 'samesite=strict' in headers.get('Set-Cookie', '').lower())

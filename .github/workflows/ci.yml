@@ -19,16 +19,16 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: src/Careflow.Web/package-lock.json
-      - name: Restore and build .NET (official SQL provider package)
-        run: dotnet build Careflow.slnx --configuration Release
-      - name: Application and domain tests
-        run: dotnet run --project tests/Careflow.Tests --configuration Release --no-build
-      - name: Frontend dependencies and unit tests
+      - name: Frontend dependencies, unit tests and workspace bundle
         working-directory: src/Careflow.Web
         run: |
           npm ci
           npm test
           npm run build
+      - name: Restore and build .NET (official SQL provider package; workspace bundle copied into wwwroot)
+        run: dotnet build Careflow.slnx --configuration Release
+      - name: Application and domain tests
+        run: dotnet run --project tests/Careflow.Tests --configuration Release --no-build
       - name: Install browser
         working-directory: src/Careflow.Web
         run: npx playwright install --with-deps chromium
@@ -61,5 +61,47 @@ jobs:
           name: careflow-test-diagnostics
           path: test-results/
           if-no-files-found: ignore
-# A separate SQL Server integration job must be added and passed before release.
-# This workflow deliberately does not label static schema checks as database integration tests.
+  # Database release gate: the Phase 1 and Phase 2 data paths execute against a real
+  # SQL Server container (not the memory adapter, not static schema checks).
+  sql-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: "Careflow!Sql2026"
+        ports:
+          - 1433:1433
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Restore and build .NET (official SQL provider package)
+        run: dotnet build Careflow.slnx --configuration Release
+      - name: Apply SQL migrations through the API migration runner
+        env:
+          ConnectionStrings__Careflow: "Server=localhost,1433;Database=Careflow;User Id=sa;Password=Careflow!Sql2026;Encrypt=True;TrustServerCertificate=True"
+        run: |
+          ready=false
+          for i in $(seq 1 30); do
+            if dotnet run --project src/Careflow.Api --configuration Release --no-build -- migrate; then ready=true; break; fi
+            sleep 4
+          done
+          test "$ready" = true
+      - name: Phase 1 and Phase 2 SQL integration tests
+        env:
+          CAREFLOW_TEST_SQL: "Server=localhost,1433;Database=Careflow;User Id=sa;Password=Careflow!Sql2026;Encrypt=True;TrustServerCertificate=True"
+        run: dotnet run --project tests/Careflow.SqlTests --configuration Release --no-build
+      - name: Collect SQL failure diagnostics
+        if: failure()
+        run: mkdir -p test-results
+      - name: Upload SQL failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: careflow-sql-diagnostics
+          path: test-results/
+          if-no-files-found: ignore

@@ -30,10 +30,10 @@ Updated: 2026-11-13. This file is the source of truth for delivered behavior; th
 
 - .NET solution build: passed with the external-provider compilation override required by the sandbox network.
 - Application/domain executable tests: 22 passed (UHID/duplicates, contact validation, update duplicate review, RBAC, booking conflicts, tokens, clinical versions/signing/allergy review, pricing/payment idempotency, module gates, branch-scoped sessions, login source IP, revocation and audit).
-- HTTP smoke checks: 18 passed (authentication, cookie flags, CSRF/origin rejection, role denial, required-field rejection, payment/audit behavior and revocation).
+- HTTP smoke checks: 21 passed (authentication, cookie flags, CSRF/origin rejection, role denial, required-field rejection, payment/audit behavior, revocation and ASP.NET Core workspace hosting/fallback).
 - Frontend unit tests: 6 passed (age boundary, currency/local date formatting and CSV safety).
 - Browser workflows: 2 passed (full patient→appointment→prescription/sign-off→invoice/payment; mobile navigation/module honesty/dark mode).
 - Frontend production bundle: passed.
-- SQL migration/example: static TSQL parse passed; runtime integration not performed.
+- SQL migration/example: static TSQL parse passed (lint only). Phase 1 data paths execute against a real SQL Server through `tests/Careflow.SqlTests` in the CI `sql-integration` job — migrations applied by the API runner, then registration/UHID sequences, duplicate review, Version CAS, booking conflicts, encounter hashing, payment idempotency and iam sessions run on SQL Server. The sandbox preview itself has no SQL Server engine and stays on the Demo adapter.
 
 These checks are development evidence, not a production readiness or accreditation assessment.

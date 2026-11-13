@@ -27,11 +27,11 @@ Updated: 2026-11-13. This file records the delivered Phase 2 increment. The full
 
 - .NET solution build: passed with the external-provider compilation override required by the sandbox network.
 - Application/domain executable tests: 40 passed (Phase 1 baseline plus ADT, bed readiness, nursing policy/escalation, eMAR, named handover, discharge immutability, stock receipt, FEFO/idempotent dispensing, IPD order linkage, LIS collection/rejection/validation/authorization/critical alerts).
-- Phase 1 HTTP smoke checks: 18 passed.
+- Phase 1 HTTP smoke checks: 21 passed.
 - Phase 2 HTTP smoke checks: 20 passed (admission/bed occupancy, nursing escalation, pharmacy RBAC/stock, LIS critical workflow, separation of duties, alert acknowledgement, named handover, discharge).
 - Frontend unit tests: 6 passed.
 - Browser workflows: 3 passed (Phase 1 patient→appointment→EMR→invoice/payment; Phase 2 inpatient→nursing→pharmacy→LIS; mobile navigation/module honesty/dark mode).
 - Frontend production bundle: passed.
-- SQL migration 0002: static TSQL parse passed; runtime integration not performed.
+- SQL migration 0002: static TSQL parse passed (lint only). Phase 2 data paths execute against a real SQL Server through `tests/Careflow.SqlTests` in the CI `sql-integration` job — admission/bed constraints, the unapproved-policy nursing gate, eMAR stock CAS, handover acknowledgement, FEFO/idempotent dispensing, IPD order linkage, LIS separation of duties and discharge immutability all run on SQL Server.
 
 These checks are development evidence, not a production readiness or accreditation assessment.

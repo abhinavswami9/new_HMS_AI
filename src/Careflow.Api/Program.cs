@@ -6,6 +6,7 @@ using Careflow.Domain;
 using Careflow.Infrastructure;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 var configuredMode = builder.Configuration["Careflow:Mode"] ?? "SqlServer";
@@ -72,10 +73,35 @@ app.Use(async (context, next) =>
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
     context.Response.Headers["Referrer-Policy"] = "no-referrer";
     context.Response.Headers["X-Frame-Options"] = "DENY";
-    if (context.Request.Path.StartsWithSegments("/api")) context.Response.Headers.CacheControl = "no-store";
+    if (context.Request.Path.StartsWithSegments("/api"))
+    {
+        context.Response.Headers.CacheControl = "no-store";
+    }
+    else
+    {
+        context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+        context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'";
+    }
     await next();
 });
 app.UseRateLimiter();
+// The compiled React workspace is served by this ASP.NET Core host so the product
+// runs as a single .NET process in production (see docs/adr/0007). The file provider
+// resolves wwwroot next to the published binaries first, then the project directory.
+var webRoot = new[] { Path.Combine(AppContext.BaseDirectory, "wwwroot"), Path.Combine(builder.Environment.ContentRootPath, "wwwroot") }.FirstOrDefault(Directory.Exists);
+if (webRoot is not null)
+{
+    var files = new PhysicalFileProvider(webRoot);
+    app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = files });
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = files,
+        OnPrepareResponse = context =>
+        {
+            if (context.Context.Request.Path.StartsWithSegments("/assets")) context.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+        }
+    });
+}
 app.MapGet("/health/live", () => Results.Ok(new { status = "alive" }));
 app.MapGet("/health/ready", async (CancellationToken ct) => database is null || await database.Ready(ct) ? Results.Ok(new { status = "ready", mode }) : Results.Problem(statusCode: 503, title: "Database is unavailable."));
 
@@ -154,6 +180,24 @@ root.MapPost("/invoices/{id:guid}/payments", async (Guid id, PaymentInput input,
 root.MapPut("/modules/{key}", async (string key, ModuleInput input, HttpContext context, HospitalService service, CancellationToken ct) => Results.Ok(await service.SetModule(Scope(context), key, input.Enabled, input.Reason, ct)));
 CareEndpoints.Map(root);
 root.MapGet("/admin/roles", (HttpContext context) => { Scope(context).Require(Permissions.Admin); return Results.Ok(Permissions.Roles.Select(r => new { role = r.Key, permissions = r.Value })); });
+if (webRoot is not null)
+{
+    var indexFile = Path.Combine(webRoot, "index.html");
+    app.MapFallback((RequestDelegate)(async context =>
+    {
+        var path = context.Request.Path.Value ?? "";
+        var isPage = HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method);
+        if (isPage && !path.StartsWith("/api", StringComparison.OrdinalIgnoreCase) && !path.StartsWith("/health", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Response.ContentType = "text/html; charset=utf-8";
+            context.Response.Headers.CacheControl = "no-cache";
+            await context.Response.SendFileAsync(indexFile);
+            return;
+        }
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        await context.Response.WriteAsJsonAsync(new { title = "Endpoint not found.", code = "not-found" });
+    }));
+}
 app.Run();
 public sealed record DemoInput(string Role = "Hospital Admin");
 public partial class Program { }
