@@ -53,11 +53,23 @@ public sealed record CareWorkspace(
     IReadOnlyList<CriticalAlert> CriticalAlerts, bool Truncated = false)
 {
     public IReadOnlyList<StaffMember> Nurses { get; init; } = [];
+    public IReadOnlyList<RadiologyOrder> RadiologyOrders { get; init; } = [];
+    public IReadOnlyList<RadiologyReport> RadiologyReports { get; init; } = [];
+    public IReadOnlyList<EmergencyRegistration> EmergencyRegistrations { get; init; } = [];
+    public IReadOnlyList<TriageAssessment> TriageAssessments { get; init; } = [];
+    public IReadOnlyList<OtBooking> OtBookings { get; init; } = [];
+    public IReadOnlyList<BloodUnit> BloodUnits { get; init; } = [];
+    public IReadOnlyList<BloodIssue> BloodIssues { get; init; } = [];
     public static CareWorkspace Empty { get; } = new([], [], [], [], [], [], [], [], [], [], [], [], [], []);
 }
 public sealed record CareChart(IReadOnlyList<Admission> Admissions, IReadOnlyList<NursingNote> NursingNotes,
     IReadOnlyList<MedicationOrder> MedicationOrders, IReadOnlyList<Dispense> Dispenses, IReadOnlyList<LabOrder> LabOrders,
     IReadOnlyList<LabResult> LabResults, bool Truncated = false)
 {
+    public IReadOnlyList<RadiologyOrder> RadiologyOrders { get; init; } = [];
+    public IReadOnlyList<RadiologyReport> RadiologyReports { get; init; } = [];
+    public IReadOnlyList<EmergencyRegistration> EmergencyRegistrations { get; init; } = [];
+    public IReadOnlyList<OtBooking> OtBookings { get; init; } = [];
+    public IReadOnlyList<BloodIssue> BloodIssues { get; init; } = [];
     public static CareChart Empty { get; } = new([], [], [], [], [], []);
 }

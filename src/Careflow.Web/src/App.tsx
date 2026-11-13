@@ -31,11 +31,14 @@ import {
   Plus,
   Receipt,
   ScanLine,
+  Scissors,
   Search,
   Settings2,
   ShieldCheck,
+  Siren,
   Stethoscope,
   Sun,
+  Syringe,
   Users,
 } from "lucide-react";
 import { AppProvider, useApp } from "./store";
@@ -50,6 +53,10 @@ import { Inpatient } from "./pages/Inpatient";
 import { Nursing } from "./pages/Nursing";
 import { Pharmacy } from "./pages/Pharmacy";
 import { Laboratory } from "./pages/Laboratory";
+import { Radiology } from "./pages/Radiology";
+import { Emergency } from "./pages/Emergency";
+import { OperationTheatre } from "./pages/OperationTheatre";
+import { BloodBank } from "./pages/BloodBank";
 const mainNav = [
   { to: "/", label: "Overview", icon: LayoutDashboard },
   { to: "/patients", label: "Patients", icon: Users },
@@ -85,6 +92,34 @@ const careNav = [
     icon: FlaskConical,
     module: "laboratory",
     permission: "lab.read",
+  },
+  {
+    to: "/radiology",
+    label: "Radiology",
+    icon: ScanLine,
+    module: "radiology",
+    permission: "radiology.read",
+  },
+  {
+    to: "/emergency",
+    label: "Emergency",
+    icon: Siren,
+    module: "emergency",
+    permission: "emergency.read",
+  },
+  {
+    to: "/theatre",
+    label: "Operation Theatre",
+    icon: Scissors,
+    module: "ot",
+    permission: "ot.read",
+  },
+  {
+    to: "/blood-bank",
+    label: "Blood Bank",
+    icon: Syringe,
+    module: "blood",
+    permission: "blood.read",
   },
 ];
 export default function App() {
@@ -235,7 +270,7 @@ function Shell() {
         </nav>
         <div className="nav-section-label clinical-label">
           CLINICAL MODULES
-          <span>{String(visibleCareNav.length + 1).padStart(2, "0")}</span>
+          <span>{String(visibleCareNav.length).padStart(2, "0")}</span>
         </div>
         <nav>
           {visibleCareNav.map((n) => (
@@ -250,14 +285,6 @@ function Shell() {
               <span>{n.label}</span>
             </NavLink>
           ))}
-          <button
-            className="nav-item unavailable"
-            onClick={() => navigate("/modules")}
-          >
-            <ScanLine size={19} strokeWidth={1.7} />
-            <span>Radiology</span>
-            <span className="soon-label">Soon</span>
-          </button>
         </nav>
         <div className="nav-section-label clinical-label">MANAGE</div>
         <nav>
@@ -316,6 +343,8 @@ function Shell() {
                     "Pharmacist",
                     "Lab Technician",
                     "Pathologist",
+                    "Radiologist",
+                    "Blood Bank Technician",
                   ].map((r) => (
                     <option key={r}>{r}</option>
                   ))}
@@ -392,7 +421,7 @@ function Shell() {
             <ShieldCheck size={13} />
             <span>Synthetic preview · no real patient data</span>
             <span className="demo-ribbon-right">
-              Phase 2 <span>·</span> Connected to the Careflow API
+              Phase 3 <span>·</span> Connected to the Careflow API
             </span>
           </div>
         )}
@@ -434,6 +463,38 @@ function Shell() {
               element={
                 <CareRoute module="laboratory" permission="lab.read">
                   <Laboratory />
+                </CareRoute>
+              }
+            />
+            <Route
+              path="/radiology"
+              element={
+                <CareRoute module="radiology" permission="radiology.read">
+                  <Radiology />
+                </CareRoute>
+              }
+            />
+            <Route
+              path="/emergency"
+              element={
+                <CareRoute module="emergency" permission="emergency.read">
+                  <Emergency />
+                </CareRoute>
+              }
+            />
+            <Route
+              path="/theatre"
+              element={
+                <CareRoute module="ot" permission="ot.read">
+                  <OperationTheatre />
+                </CareRoute>
+              }
+            />
+            <Route
+              path="/blood-bank"
+              element={
+                <CareRoute module="blood" permission="blood.read">
+                  <BloodBank />
                 </CareRoute>
               }
             />

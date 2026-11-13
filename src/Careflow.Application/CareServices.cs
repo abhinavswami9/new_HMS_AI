@@ -399,7 +399,7 @@ public sealed class LaboratoryService(IUnitOfWork unitOfWork, IClock clock)
     public Task<CriticalAlert> AcknowledgeAlert(Scope scope, Guid id, AlertAcknowledgeInput input, CancellationToken ct) => unitOfWork.ExecuteAsync(scope, async s =>
     {
         var alert = await s.FindCriticalAlertAsync(id, ct) ?? throw new DomainException("not_found", "Alert not found.", 404);
-        scope.Require(alert.Kind == "Nursing" ? Permissions.NursingWrite : Permissions.LabAcknowledge);
+        scope.Require(alert.Kind switch { "Nursing" => Permissions.NursingWrite, "Radiology" => Permissions.RadiologyRead, "Blood" => Permissions.BloodRead, _ => Permissions.LabAcknowledge });
         if (alert.Status != "Open") throw new DomainException("alert.state", "Only open alerts can be acknowledged.", 409);
         var note = CareGuard.Text(input.Note, 5, 1000, "Acknowledgement note");
         var updated = alert with { Status = "Acknowledged", AcknowledgedAt = clock.UtcNow, AcknowledgedBy = scope.Actor.Id, AcknowledgeNote = note };

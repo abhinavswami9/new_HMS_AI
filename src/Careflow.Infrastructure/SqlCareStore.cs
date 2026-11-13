@@ -34,9 +34,27 @@ public sealed partial class SqlHospitalStore
         var tests = lab ? await Query("SELECT TOP(@limit) * FROM lab.Tests WHERE HospitalId=@h ORDER BY Name", MapLabTest, H, ("limit", take)) : [];
         var labOrders = lab ? await Query($"SELECT TOP(@limit) {LabOrderColumns} FROM lab.Orders WHERE HospitalId=@h AND BranchId=@b ORDER BY OrderedAtUtc DESC", MapLabOrder, H, Branch, ("limit", take)) : [];
         var results = lab ? await Query("SELECT TOP(@limit) * FROM lab.Results WHERE HospitalId=@h AND BranchId=@b ORDER BY EnteredAtUtc DESC", MapLabResult, H, Branch, ("limit", take)) : [];
-        var alerts = await Query("SELECT TOP(@limit) * FROM alerts.CriticalAlerts WHERE HospitalId=@h AND BranchId=@b AND ((Kind='Nursing' AND @n=1) OR (Kind<>'Nursing' AND @l=1)) ORDER BY CreatedAtUtc DESC", MapAlert, H, Branch, ("n", nursing), ("l", lab), ("limit", take));
-        var truncated = new[] { beds.Count, admissions.Count, bedEvents.Count, notes.Count, orders.Count, admins.Count, handovers.Count, batches.Count, movements.Count, dispenses.Count, tests.Count, labOrders.Count, results.Count, alerts.Count }.Any(n => n > limit);
-        return new CareWorkspace(beds.Take(limit).ToList(), admissions.Take(limit).ToList(), bedEvents.Take(limit).ToList(), notes.Take(limit).ToList(), orders.Take(limit).ToList(), admins.Take(limit).ToList(), handovers.Take(limit).ToList(), batches.Take(limit).ToList(), movements.Take(limit).ToList(), dispenses.Take(limit).ToList(), tests.Take(limit).ToList(), labOrders.Take(limit).ToList(), results.Take(limit).ToList(), alerts.Take(limit).ToList(), truncated) { Nurses = nursing ? await LoadNursingStaffAsync(ct) : [] };
+        var radiology = p.Contains(Permissions.RadiologyRead); var emergency = p.Contains(Permissions.EmergencyRead); var ot = p.Contains(Permissions.OtRead); var blood = p.Contains(Permissions.BloodRead);
+        var radiologyOrders = radiology ? await Query($"SELECT TOP(@limit) {RadiologyOrderColumns} FROM ris.Orders WHERE HospitalId=@h AND BranchId=@b ORDER BY OrderedAtUtc DESC", MapRadiologyOrder, H, Branch, ("limit", take)) : [];
+        var radiologyReports = radiology ? await Query($"SELECT TOP(@limit) {RadiologyReportColumns} FROM ris.Reports WHERE HospitalId=@h ORDER BY ReportedAtUtc DESC", MapRadiologyReport, H, ("limit", take)) : [];
+        var emergencyRegistrations = emergency ? await Query("SELECT TOP(@limit) Id,Number,PatientId,PatientName,Sex,DateOfBirth,ArrivalMode,Status,ArrivedAtUtc,CreatedBy,Version FROM emergency.Registrations WHERE HospitalId=@h AND BranchId=@b ORDER BY ArrivedAtUtc DESC", MapEmergencyRegistration, H, Branch, ("limit", take)) : [];
+        var triage = emergency ? await Query("SELECT TOP(@limit) Id,RegistrationId,Category,Complaint,TemperatureC,Pulse,Systolic,Diastolic,WeightKg,Spo2,AssessedBy,AssessedAtUtc FROM emergency.TriageAssessments WHERE HospitalId=@h ORDER BY AssessedAtUtc DESC", MapTriage, H, ("limit", take)) : [];
+        var otBookings = ot ? await Query("SELECT TOP(@limit) Id,Number,PatientId,AdmissionId,ProcedureName,Laterality,Site,SurgeonId,Anaesthesia,Priority,Status,Theatre,ScheduledStartUtc,ScheduledEndUtc,RequestedAtUtc,RequestedBy,TimeInUtc,TimeOutUtc,OperationNote,Version FROM ot.Bookings WHERE HospitalId=@h AND BranchId=@b ORDER BY RequestedAtUtc DESC", MapOtBooking, H, Branch, ("limit", take)) : [];
+        var bloodUnits = blood ? await Query("SELECT TOP(@limit) Id,UnitNumber,BloodGroup,Component,ExpiryDate,Status,DonorName,CollectedAtUtc,Version FROM blood.Units WHERE HospitalId=@h AND BranchId=@b ORDER BY ExpiryDate", MapBloodUnit, H, Branch, ("limit", take)) : [];
+        var bloodIssues = blood ? await Query("SELECT TOP(@limit) Id,Number,UnitId,PatientId,AdmissionId,Status,Reaction,ReturnAssessment,IssuedBy,IssuedAtUtc,TransfusedAtUtc,Notes,Version FROM blood.Issues WHERE HospitalId=@h AND BranchId=@b ORDER BY IssuedAtUtc DESC", MapBloodIssue, H, Branch, ("limit", take)) : [];
+        var alerts = await Query("SELECT TOP(@limit) * FROM alerts.CriticalAlerts WHERE HospitalId=@h AND BranchId=@b AND ((Kind='Nursing' AND @n=1) OR (Kind='Radiology' AND @r=1) OR (Kind='Blood' AND @bl=1) OR (Kind NOT IN ('Nursing','Radiology','Blood') AND @l=1)) ORDER BY CreatedAtUtc DESC", MapAlert, H, Branch, ("n", nursing), ("r", radiology), ("bl", blood), ("l", lab), ("limit", take));
+        var truncated = new[] { beds.Count, admissions.Count, bedEvents.Count, notes.Count, orders.Count, admins.Count, handovers.Count, batches.Count, movements.Count, dispenses.Count, tests.Count, labOrders.Count, results.Count, alerts.Count, radiologyOrders.Count, radiologyReports.Count, emergencyRegistrations.Count, triage.Count, otBookings.Count, bloodUnits.Count, bloodIssues.Count }.Any(n => n > limit);
+        return new CareWorkspace(beds.Take(limit).ToList(), admissions.Take(limit).ToList(), bedEvents.Take(limit).ToList(), notes.Take(limit).ToList(), orders.Take(limit).ToList(), admins.Take(limit).ToList(), handovers.Take(limit).ToList(), batches.Take(limit).ToList(), movements.Take(limit).ToList(), dispenses.Take(limit).ToList(), tests.Take(limit).ToList(), labOrders.Take(limit).ToList(), results.Take(limit).ToList(), alerts.Take(limit).ToList(), truncated)
+        {
+            Nurses = nursing ? await LoadNursingStaffAsync(ct) : [],
+            RadiologyOrders = radiologyOrders.Take(limit).ToList(),
+            RadiologyReports = radiologyReports.Take(limit).ToList(),
+            EmergencyRegistrations = emergencyRegistrations.Take(limit).ToList(),
+            TriageAssessments = triage.Take(limit).ToList(),
+            OtBookings = otBookings.Take(limit).ToList(),
+            BloodUnits = bloodUnits.Take(limit).ToList(),
+            BloodIssues = bloodIssues.Take(limit).ToList()
+        };
     }
     private async Task<List<ShiftHandover>> LoadHandoversAsync(int limit, CancellationToken ct)
     {
@@ -107,8 +125,21 @@ public sealed partial class SqlHospitalStore
         var dispenses = pharmacy ? await LoadPatientDispensesAsync(patientId, take, ct) : [];
         var labOrders = lab ? await Query($"SELECT TOP(@limit) {LabOrderColumns} FROM lab.Orders WHERE HospitalId=@h AND BranchId=@b AND PatientId=@p ORDER BY OrderedAtUtc DESC", MapLabOrder, H, Branch, ("p", patientId), ("limit", take)) : [];
         var results = lab ? await Query("SELECT TOP(@limit) r.* FROM lab.Results r JOIN lab.Orders o ON o.Id=r.OrderId AND o.HospitalId=r.HospitalId WHERE r.HospitalId=@h AND r.BranchId=@b AND o.PatientId=@p ORDER BY r.EnteredAtUtc DESC", MapLabResult, H, Branch, ("p", patientId), ("limit", take)) : [];
-        var truncated = new[] { admissions.Count, notes.Count, orders.Count, dispenses.Count, labOrders.Count, results.Count }.Any(n => n > limit);
-        return new CareChart(admissions.Take(limit).ToList(), notes.Take(limit).ToList(), orders.Take(limit).ToList(), dispenses.Take(limit).ToList(), labOrders.Take(limit).ToList(), results.Take(limit).ToList(), truncated);
+        var radiology = p.Contains(Permissions.RadiologyRead); var emergency = p.Contains(Permissions.EmergencyRead); var ot = p.Contains(Permissions.OtRead); var blood = p.Contains(Permissions.BloodRead);
+        var radiologyOrders = radiology ? await Query($"SELECT TOP(@limit) {RadiologyOrderColumns} FROM ris.Orders WHERE HospitalId=@h AND BranchId=@b AND PatientId=@p ORDER BY OrderedAtUtc DESC", MapRadiologyOrder, H, Branch, ("p", patientId), ("limit", take)) : [];
+        var radiologyReports = radiology ? await Query($"SELECT TOP(@limit) r.* FROM ris.Reports r JOIN ris.Orders o ON o.Id=r.OrderId AND o.HospitalId=r.HospitalId WHERE r.HospitalId=@h AND o.PatientId=@p ORDER BY r.ReportedAtUtc DESC", MapRadiologyReport, H, ("p", patientId), ("limit", take)) : [];
+        var emergencyRegistrations = emergency ? await Query("SELECT TOP(@limit) Id,Number,PatientId,PatientName,Sex,DateOfBirth,ArrivalMode,Status,ArrivedAtUtc,CreatedBy,Version FROM emergency.Registrations WHERE HospitalId=@h AND BranchId=@b AND PatientId=@p ORDER BY ArrivedAtUtc DESC", MapEmergencyRegistration, H, Branch, ("p", patientId), ("limit", take)) : [];
+        var otBookings = ot ? await Query("SELECT TOP(@limit) Id,Number,PatientId,AdmissionId,ProcedureName,Laterality,Site,SurgeonId,Anaesthesia,Priority,Status,Theatre,ScheduledStartUtc,ScheduledEndUtc,RequestedAtUtc,RequestedBy,TimeInUtc,TimeOutUtc,OperationNote,Version FROM ot.Bookings WHERE HospitalId=@h AND BranchId=@b AND PatientId=@p ORDER BY RequestedAtUtc DESC", MapOtBooking, H, Branch, ("p", patientId), ("limit", take)) : [];
+        var bloodIssues = blood ? await Query("SELECT TOP(@limit) Id,Number,UnitId,PatientId,AdmissionId,Status,Reaction,ReturnAssessment,IssuedBy,IssuedAtUtc,TransfusedAtUtc,Notes,Version FROM blood.Issues WHERE HospitalId=@h AND BranchId=@b AND PatientId=@p ORDER BY IssuedAtUtc DESC", MapBloodIssue, H, Branch, ("p", patientId), ("limit", take)) : [];
+        var truncated = new[] { admissions.Count, notes.Count, orders.Count, dispenses.Count, labOrders.Count, results.Count, radiologyOrders.Count, otBookings.Count, bloodIssues.Count }.Any(n => n > limit);
+        return new CareChart(admissions.Take(limit).ToList(), notes.Take(limit).ToList(), orders.Take(limit).ToList(), dispenses.Take(limit).ToList(), labOrders.Take(limit).ToList(), results.Take(limit).ToList(), truncated)
+        {
+            RadiologyOrders = radiologyOrders.Take(limit).ToList(),
+            RadiologyReports = radiologyReports.Take(limit).ToList(),
+            EmergencyRegistrations = emergencyRegistrations.Take(limit).ToList(),
+            OtBookings = otBookings.Take(limit).ToList(),
+            BloodIssues = bloodIssues.Take(limit).ToList()
+        };
     }
     private async Task<List<Dispense>> LoadPatientDispensesAsync(Guid patientId, int limit, CancellationToken ct)
     {

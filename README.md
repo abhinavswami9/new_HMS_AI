@@ -34,7 +34,15 @@ A modular hospital information system foundation: **ASP.NET Core / .NET 10, SQL 
 - Pharmacy batch/expiry stock receipt, append-only stock movements, FEFO dispensing, OPD signed-prescription linkage, IPD active-medication-order linkage and request-hash idempotency.
 - LIS test ordering, barcode/accession collection, processing, rejection, result entry, second-person technical validation, pathologist authorization, critical alerts and immutable authorized reports.
 - Patient chart care-history tab with permission-filtered admissions, nursing notes, medication orders, dispenses and lab orders/results.
-- Branch module settings now cover Phase 2; Phase 3+ modules still cannot be activated by a toggle.
+- Branch module settings now cover Phase 3; Phase 4+ modules still cannot be activated by a toggle.
+
+## Working Phase 3 slice
+
+- RIS workflow: imaging orders with modality/laterality validation, accession-numbered scheduling, study acquisition with DICOM Study Instance UIDs, structured reports with critical-result alerts and second-clinician authorization (authorizer ≠ reporter). **No live PACS/DICOM archive is connected** — the viewer-launch endpoint fails closed until an approved integration exists.
+- Emergency board: walk-in/ambulance registration with linked-patient identity matching, triage categories (Red/Yellow/Green/Black), append-only observations and one-shot dispositions (Admit creates an admission and occupies a bed).
+- Operation theatre: bookings with conflict-free theatre slots, the five-point surgical safety checklist required before time-in, server-clock procedure times and operation notes.
+- Blood bank: unit receipt with unique unit numbers and component-aware expiry, screening quarantine, red-cell/plasma crossmatch compatibility rules, issue-to-transfusion/return closure with reaction alerts.
+- Role switcher adds Radiologist and Blood Bank Technician.
 
 The preview’s **Doctor** role is Dr. Anjali Sharma. The initial **Hospital Admin** role can manage registration, queues, billing and configuration but cannot sign clinical records. Use the role selector at the bottom of the sidebar to explore permissions. This selector exists only in Demo mode.
 

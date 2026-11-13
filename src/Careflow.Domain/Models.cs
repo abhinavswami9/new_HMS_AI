@@ -18,16 +18,22 @@ public static class Permissions
     public const string NursingRead = "nursing.read"; public const string NursingWrite = "nursing.write"; public const string NursingOrder = "nursing.order"; public const string NursingAdminister = "nursing.administer"; public const string NursingHandover = "nursing.handover";
     public const string PharmacyRead = "pharmacy.read"; public const string PharmacyWrite = "pharmacy.write"; public const string PharmacyDispense = "pharmacy.dispense";
     public const string LabRead = "lab.read"; public const string LabOrder = "lab.order"; public const string LabCollect = "lab.collect"; public const string LabProcess = "lab.process"; public const string LabResult = "lab.result"; public const string LabValidate = "lab.validate"; public const string LabAuthorize = "lab.authorize"; public const string LabAcknowledge = "lab.acknowledge";
+    public const string RadiologyRead = "radiology.read"; public const string RadiologyOrder = "radiology.order"; public const string RadiologySchedule = "radiology.schedule"; public const string RadiologyPerform = "radiology.perform"; public const string RadiologyReport = "radiology.report"; public const string RadiologyAuthorize = "radiology.authorize";
+    public const string EmergencyRead = "emergency.read"; public const string EmergencyWrite = "emergency.write"; public const string EmergencyTriage = "emergency.triage"; public const string EmergencyDispose = "emergency.dispose";
+    public const string OtRead = "ot.read"; public const string OtRequest = "ot.request"; public const string OtSchedule = "ot.schedule"; public const string OtRecord = "ot.record";
+    public const string BloodRead = "blood.read"; public const string BloodReceive = "blood.receive"; public const string BloodScreen = "blood.screen"; public const string BloodCrossmatch = "blood.crossmatch"; public const string BloodIssue = "blood.issue"; public const string BloodTransfuse = "blood.transfuse";
     public static readonly IReadOnlyDictionary<string, string[]> Roles = new Dictionary<string, string[]>
     {
-        ["Hospital Admin"] = [PatientRead, PatientWrite, ScheduleRead, ScheduleWrite, ClinicalRead, BillingRead, BillingWrite, BillingCollect, Admin, AuditRead, IpdRead, IpdWrite, IpdBed, NursingRead, PharmacyRead, LabRead, LabAcknowledge],
-        ["Doctor"] = [PatientRead, ScheduleRead, ScheduleWrite, ClinicalRead, ClinicalWrite, ClinicalSign, IpdRead, IpdWrite, IpdDischarge, NursingRead, NursingWrite, NursingOrder, LabRead, LabOrder, LabAcknowledge],
-        ["Receptionist"] = [PatientRead, PatientWrite, ScheduleRead, ScheduleWrite, IpdRead, IpdWrite],
-        ["Billing Staff"] = [PatientRead, ScheduleRead, BillingRead, BillingWrite, BillingCollect],
-        ["Nurse"] = [PatientRead, ScheduleRead, ClinicalRead, IpdRead, IpdBed, NursingRead, NursingWrite, NursingAdminister, NursingHandover, LabRead, LabAcknowledge],
+        ["Hospital Admin"] = [PatientRead, PatientWrite, ScheduleRead, ScheduleWrite, ClinicalRead, BillingRead, BillingWrite, BillingCollect, Admin, AuditRead, IpdRead, IpdWrite, IpdBed, NursingRead, PharmacyRead, LabRead, LabAcknowledge, RadiologyRead, RadiologyOrder, RadiologySchedule, RadiologyPerform, RadiologyReport, RadiologyAuthorize, EmergencyRead, EmergencyWrite, EmergencyTriage, EmergencyDispose, OtRead, OtRequest, OtSchedule, OtRecord, BloodRead, BloodReceive, BloodScreen, BloodCrossmatch, BloodIssue, BloodTransfuse],
+        ["Doctor"] = [PatientRead, ScheduleRead, ScheduleWrite, ClinicalRead, ClinicalWrite, ClinicalSign, IpdRead, IpdWrite, IpdDischarge, NursingRead, NursingWrite, NursingOrder, LabRead, LabOrder, LabAcknowledge, RadiologyRead, RadiologyOrder, EmergencyRead, EmergencyWrite, EmergencyDispose, OtRead, OtRequest, OtRecord, BloodRead, BloodTransfuse],
+        ["Receptionist"] = [PatientRead, PatientWrite, ScheduleRead, ScheduleWrite, IpdRead, IpdWrite, EmergencyRead, EmergencyWrite, RadiologyRead],
+        ["Billing Staff"] = [PatientRead, ScheduleRead, BillingRead, BillingWrite, BillingCollect, RadiologyRead, OtRead],
+        ["Nurse"] = [PatientRead, ScheduleRead, ClinicalRead, IpdRead, IpdBed, NursingRead, NursingWrite, NursingAdminister, NursingHandover, LabRead, LabAcknowledge, RadiologyRead, EmergencyRead, EmergencyWrite, EmergencyTriage, OtRead, OtRecord, BloodRead, BloodTransfuse],
         ["Pharmacist"] = [PatientRead, ClinicalRead, PharmacyRead, PharmacyWrite, PharmacyDispense],
         ["Lab Technician"] = [PatientRead, LabRead, LabCollect, LabProcess, LabResult, LabValidate],
-        ["Pathologist"] = [PatientRead, ClinicalRead, LabRead, LabAuthorize, LabAcknowledge]
+        ["Pathologist"] = [PatientRead, ClinicalRead, LabRead, LabAuthorize, LabAcknowledge],
+        ["Radiologist"] = [PatientRead, ClinicalRead, RadiologyRead, RadiologySchedule, RadiologyPerform, RadiologyReport, RadiologyAuthorize],
+        ["Blood Bank Technician"] = [PatientRead, BloodRead, BloodReceive, BloodScreen, BloodCrossmatch, BloodIssue]
     };
     public static IReadOnlyList<string> For(string role) => Roles.TryGetValue(role, out var p) ? p : [];
 }

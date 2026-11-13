@@ -10,6 +10,7 @@ public sealed partial class MemoryHospitalStore
         var p = s.Actor.Permissions;
         List<T> Take<T>(IEnumerable<T> source) => source.Take(limit).ToList();
         var ipd = p.Contains(Permissions.IpdRead); var nursing = p.Contains(Permissions.NursingRead); var pharmacy = p.Contains(Permissions.PharmacyRead); var lab = p.Contains(Permissions.LabRead);
+        var radiology = p.Contains(Permissions.RadiologyRead); var emergency = p.Contains(Permissions.EmergencyRead); var ot = p.Contains(Permissions.OtRead); var blood = p.Contains(Permissions.BloodRead);
         var care = new CareWorkspace(
             ipd ? Take(data.Beds.OrderBy(b => b.Ward).ThenBy(b => b.Number)) : [],
             ipd ? Take(data.Admissions.OrderByDescending(a => a.AdmittedAt)) : [],
@@ -24,9 +25,19 @@ public sealed partial class MemoryHospitalStore
             lab ? Take(data.LabTests.OrderBy(t => t.Name)) : [],
             lab ? Take(data.LabOrders.OrderByDescending(o => o.OrderedAt)) : [],
             lab ? Take(data.LabResults.OrderByDescending(r => r.EnteredAt)) : [],
-            Take(data.CriticalAlerts.Where(a => a.Kind == "Nursing" ? nursing : lab).OrderByDescending(a => a.CreatedAt)),
-            new[] { data.Beds.Count, data.Admissions.Count, data.BedEvents.Count, data.NursingNotes.Count, data.MedicationOrders.Count, data.Administrations.Count, data.Handovers.Count, data.StockBatches.Count, data.StockMovements.Count, data.Dispenses.Count, data.LabTests.Count, data.LabOrders.Count, data.LabResults.Count, data.CriticalAlerts.Count }.Any(n => n > limit));
-        care = care with { Nurses = nursing ? LoadNursingStaffAsync(ct).Result : [] };
+            Take(data.CriticalAlerts.Where(a => a.Kind switch { "Nursing" => nursing, "Radiology" => radiology, "Blood" => blood, _ => lab }).OrderByDescending(a => a.CreatedAt)),
+            new[] { data.Beds.Count, data.Admissions.Count, data.BedEvents.Count, data.NursingNotes.Count, data.MedicationOrders.Count, data.Administrations.Count, data.Handovers.Count, data.StockBatches.Count, data.StockMovements.Count, data.Dispenses.Count, data.LabTests.Count, data.LabOrders.Count, data.LabResults.Count, data.CriticalAlerts.Count, data.RadiologyOrders.Count, data.RadiologyReports.Count, data.EmergencyRegistrations.Count, data.TriageAssessments.Count, data.OtBookings.Count, data.BloodUnits.Count, data.BloodIssues.Count }.Any(n => n > limit));
+        care = care with
+        {
+            Nurses = nursing ? LoadNursingStaffAsync(ct).Result : [],
+            RadiologyOrders = radiology ? Take(data.RadiologyOrders.OrderByDescending(o => o.OrderedAt)) : [],
+            RadiologyReports = radiology ? Take(data.RadiologyReports.OrderByDescending(r => r.ReportedAt)) : [],
+            EmergencyRegistrations = emergency ? Take(data.EmergencyRegistrations.OrderByDescending(r => r.ArrivedAt)) : [],
+            TriageAssessments = emergency ? Take(data.TriageAssessments.OrderByDescending(t => t.AssessedAt)) : [],
+            OtBookings = ot ? Take(data.OtBookings.OrderByDescending(b => b.RequestedAt)) : [],
+            BloodUnits = blood ? Take(data.BloodUnits.OrderBy(u => u.ExpiryDate)) : [],
+            BloodIssues = blood ? Take(data.BloodIssues.OrderByDescending(i => i.IssuedAt)) : []
+        };
         return Task.FromResult(care);
     }
     public Task<bool> HasActiveAdmissionsAsync(CancellationToken ct) => Task.FromResult(data.Admissions.Any(a => a.Status == "Active"));
@@ -81,7 +92,17 @@ public sealed partial class MemoryHospitalStore
         var labOrders = lab ? Take(data.LabOrders.Where(o => o.PatientId == patientId).OrderByDescending(o => o.OrderedAt)) : [];
         var patientOrderIds = data.LabOrders.Where(o => o.PatientId == patientId).Select(o => o.Id).ToHashSet();
         var labResults = lab ? Take(data.LabResults.Where(r => patientOrderIds.Contains(r.OrderId)).OrderByDescending(r => r.EnteredAt)) : [];
-        var truncated = new[] { data.Admissions.Count(a => a.PatientId == patientId), data.NursingNotes.Count(n => n.PatientId == patientId), data.MedicationOrders.Count(o => o.PatientId == patientId), data.Dispenses.Count(d => d.PatientId == patientId), data.LabOrders.Count(o => o.PatientId == patientId) }.Any(n => n > limit);
-        return Task.FromResult(new CareChart(admissions, notes, orders, dispenses, labOrders, labResults, truncated));
+        var truncated = new[] { data.Admissions.Count(a => a.PatientId == patientId), data.NursingNotes.Count(n => n.PatientId == patientId), data.MedicationOrders.Count(o => o.PatientId == patientId), data.Dispenses.Count(d => d.PatientId == patientId), data.LabOrders.Count(o => o.PatientId == patientId), data.RadiologyOrders.Count(o => o.PatientId == patientId), data.OtBookings.Count(b => b.PatientId == patientId), data.BloodIssues.Count(i => i.PatientId == patientId) }.Any(n => n > limit);
+        var radiologyOrders = p.Contains(Permissions.RadiologyRead) ? Take(data.RadiologyOrders.Where(o => o.PatientId == patientId).OrderByDescending(o => o.OrderedAt)) : [];
+        var radiologyIds = radiologyOrders.Select(o => o.Id).ToHashSet();
+        var radiologyReports = p.Contains(Permissions.RadiologyRead) ? Take(data.RadiologyReports.Where(r => radiologyIds.Contains(r.OrderId)).OrderByDescending(r => r.ReportedAt)) : [];
+        return Task.FromResult(new CareChart(admissions, notes, orders, dispenses, labOrders, labResults, truncated)
+        {
+            RadiologyOrders = radiologyOrders,
+            RadiologyReports = radiologyReports,
+            EmergencyRegistrations = p.Contains(Permissions.EmergencyRead) ? Take(data.EmergencyRegistrations.Where(r => r.PatientId == patientId).OrderByDescending(r => r.ArrivedAt)) : [],
+            OtBookings = p.Contains(Permissions.OtRead) ? Take(data.OtBookings.Where(b => b.PatientId == patientId).OrderByDescending(b => b.RequestedAt)) : [],
+            BloodIssues = p.Contains(Permissions.BloodRead) ? Take(data.BloodIssues.Where(i => i.PatientId == patientId).OrderByDescending(i => i.IssuedAt)) : []
+        });
     }
 }

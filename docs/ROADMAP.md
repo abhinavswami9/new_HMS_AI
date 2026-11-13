@@ -4,13 +4,13 @@
 
 Each increment: contract/schema → domain/application tests → API authorization/audit → UI workflow → integration/failure tests → clinical/finance review → release candidate. The workspace is a synthetic vertical slice, not a claim that all Phase 1/Phase 2 requirements are complete. Status is tracked here rather than inferred from navigation badges.
 
-| Phase | Scope                                                                                       | Current delivery                                                                                                             |
-| ----- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| 1     | Identity/RBAC, setup, masters, patients/UHID, appointments, OPD/EMR, prescriptions, billing | Delivered initial vertical slice; see PHASE1_STATUS.md for partial/remaining enterprise gates                                |
-| 2     | IPD, beds, nursing, pharmacy, LIS                                                           | Delivered initial vertical slice: ADT/bed board, nursing/eMAR, pharmacy stock/dispensing, LIS worklist; see PHASE2_STATUS.md |
-| 3     | RIS/PACS, OT, emergency, blood bank                                                         | Integration and safety design; no live modality connection                                                                   |
-| 4     | Insurance/TPA, incentives, telemedicine, inventory/procurement                              | Configurable workflow design; no live payment/video service                                                                  |
-| 5     | Quality, reporting, portal, mobile, AI-ready                                                | Governance/read-model design; no autonomous clinical decisions                                                               |
+| Phase | Scope                                                                                       | Current delivery                                                                                                                                           |
+| ----- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | Identity/RBAC, setup, masters, patients/UHID, appointments, OPD/EMR, prescriptions, billing | Delivered initial vertical slice; see PHASE1_STATUS.md for partial/remaining enterprise gates                                                              |
+| 2     | IPD, beds, nursing, pharmacy, LIS                                                           | Delivered initial vertical slice: ADT/bed board, nursing/eMAR, pharmacy stock/dispensing, LIS worklist; see PHASE2_STATUS.md                               |
+| 3     | RIS/PACS, OT, emergency, blood bank                                                         | Delivered initial vertical slice: RIS workflow (no live PACS — viewer fails closed), emergency board, theatre scheduling, blood bank; see PHASE3_STATUS.md |
+| 4     | Insurance/TPA, incentives, telemedicine, inventory/procurement                              | Configurable workflow design; no live payment/video service                                                                                                |
+| 5     | Quality, reporting, portal, mobile, AI-ready                                                | Governance/read-model design; no autonomous clinical decisions                                                                                             |
 
 ## Phase 1 work packages
 

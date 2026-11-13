@@ -4,15 +4,16 @@ using Careflow.Application;
 using Careflow.Domain;
 using Careflow.Infrastructure;
 
-// Phase 1 + Phase 2 SQL Server integration tests. This is the database release gate:
+// Phase 1 + Phase 2 + Phase 3 SQL Server integration tests. This is the database release gate:
 // it applies the real T-SQL migrations and then exercises the clinical, billing, IPD,
-// nursing, pharmacy and LIS flows through the ADO.NET stores against a live SQL Server.
-// The suite needs CAREFLOW_TEST_SQL (or ConnectionStrings__Careflow) and skips cleanly
-// when no SQL Server is configured so memory-adapter test runs stay hermetic.
+// nursing, pharmacy, LIS, RIS, emergency, theatre and blood bank flows through the ADO.NET
+// stores against a live SQL Server. The suite needs CAREFLOW_TEST_SQL (or
+// ConnectionStrings__Careflow) and skips cleanly when no SQL Server is configured so
+// memory-adapter test runs stay hermetic.
 var connectionString = Environment.GetEnvironmentVariable("CAREFLOW_TEST_SQL") ?? Environment.GetEnvironmentVariable("ConnectionStrings__Careflow");
 if (string.IsNullOrWhiteSpace(connectionString))
 {
-    Console.WriteLine("SKIP SQL integration tests: set CAREFLOW_TEST_SQL (or ConnectionStrings__Careflow) to a SQL Server database to run the Phase 1 + Phase 2 database release gate.");
+    Console.WriteLine("SKIP SQL integration tests: set CAREFLOW_TEST_SQL (or ConnectionStrings__Careflow) to a SQL Server database to run the Phase 1 + Phase 2 + Phase 3 database release gate.");
     return;
 }
 
@@ -36,6 +37,13 @@ async Task<object?> Query1(string sql, params (string Name, object Value)[] args
     await using var command = connection.CreateCommand(); command.CommandText = sql;
     foreach (var (name, value) in args) command.Parameters.Add(SqlDatabase.Parameter(command, name, value));
     return await command.ExecuteScalarAsync(ct);
+}
+async Task ExecSql(string sql, params (string Name, object Value)[] args)
+{
+    await using var connection = await database.OpenAsync(ct);
+    await using var command = connection.CreateCommand(); command.CommandText = sql;
+    foreach (var (name, value) in args) command.Parameters.Add(SqlDatabase.Parameter(command, name, value));
+    await command.ExecuteNonQueryAsync(ct);
 }
 
 // 1. Migration runner: applies 0001/0002 and treats the checksum ledger as immutable.
@@ -74,13 +82,13 @@ await using (var tx = (DbTransaction)await setup.BeginTransactionAsync(Isolation
     {
         await Exec("INSERT INTO org.Hospitals(Id,Code,Name) VALUES(@id,@code,@name)", ("id", hospitalId), ("code", $"SQL{runTag}"), ("name", "SQL Integration Hospital"));
         await Exec("INSERT INTO org.Branches(Id,HospitalId,Code,Name) VALUES(@id,@h,@code,@name)", ("id", branchId), ("h", hospitalId), ("code", "MAIN"), ("name", "Main Branch"));
-        foreach (var key in new[] { "patients", "appointments", "consultations", "billing", "ipd", "nursing", "pharmacy", "laboratory" })
+        foreach (var key in new[] { "patients", "appointments", "consultations", "billing", "ipd", "nursing", "pharmacy", "laboratory", "radiology", "emergency", "ot", "blood" })
             await Exec("INSERT INTO org.ModuleInstallations(HospitalId,BranchId,ModuleKey,Enabled) VALUES(@h,@b,@key,1)", ("h", hospitalId), ("b", branchId), ("key", key));
         await Exec("INSERT INTO org.Policies(HospitalId,BranchId,[Key],Version,PayloadJson,EffectiveFromUtc,ApprovedBy,Reason) VALUES(@h,@b,'nursing.escalation',1,@json,SYSUTCDATETIME(),NULL,'Fixture thresholds await governed approval.')",
             ("h", hospitalId), ("b", branchId), ("json", "{\"spo2Below\":90,\"systolicBelow\":90,\"systolicAbove\":180,\"pulseBelow\":50,\"pulseAbove\":130,\"temperatureAtOrAbove\":39.5,\"painAtOrAbove\":8}"));
 
         var roles = new Dictionary<string, Guid>();
-        foreach (var roleName in new[] { "Hospital Admin", "Doctor", "Nurse", "Pharmacist", "Lab Technician", "Pathologist" })
+        foreach (var roleName in new[] { "Hospital Admin", "Doctor", "Nurse", "Pharmacist", "Lab Technician", "Pathologist", "Radiologist", "Blood Bank Technician" })
         {
             var roleId = Guid.NewGuid(); roles[roleName] = roleId;
             await Exec("INSERT INTO iam.Roles(Id,HospitalId,Name,Description) VALUES(@id,@h,@name,'SQL integration test role')", ("id", roleId), ("h", hospitalId), ("name", roleName));
@@ -316,6 +324,71 @@ await Test("phase 2 discharge requires a summary and releases the bed", async ()
     Assert((await uow.ExecuteAsync(scope, s => s.FindBedAsync(admission!.BedId, ct), ct))!.Status == "Cleaning");
     await Throws("admission.state", () => inpatient.Transfer(scope, admission.Id, new TransferInput(bed3Id, admission.Version, "Invalid post-discharge transfer"), ct));
     Assert(Convert.ToInt32(await Query1("SELECT COUNT(1) FROM ipd.BedEvents WHERE HospitalId=@h AND Action='Discharged'", ("h", hospitalId))) == 1);
+});
+
+// Phase 3: RIS, emergency, operation theatre and blood bank on SQL Server
+var radiology = new RadiologyService(uow, clock); var emergencySvc = new EmergencyService(uow, clock); var otSvc = new OtService(uow, clock); var bloodBank = new BloodBankService(uow, clock);
+var radUserId = Guid.NewGuid(); var rad2UserId = Guid.NewGuid(); var bloodtechUserId = Guid.NewGuid();
+await Test("phase 3 role users bootstrap for RIS and blood bank", async () =>
+{
+    foreach (var (id, name, user, role) in new[] { (radUserId, "SQL Test Radiologist", "sql_rad1", "Radiologist"), (rad2UserId, "SQL Test Radiologist Two", "sql_rad2", "Radiologist"), (bloodtechUserId, "SQL Test Bloodtech", "sql_bloodtech", "Blood Bank Technician") })
+    {
+        await ExecSql("INSERT INTO iam.Users(Id,HospitalId,UserName,DisplayName,PasswordHash,Enabled) VALUES(@id,@h,@u,@name,@hash,1)", ("id", id), ("h", hospitalId), ("u", user), ("name", name), ("hash", passwords.Hash(password)));
+        Assert(role is "Radiologist" or "Blood Bank Technician");
+    }
+});
+var radScope = Scope.For(P(radUserId, "SQL Test Radiologist", "Radiologist"), clock.UtcNow);
+var rad2Scope = Scope.For(P(rad2UserId, "SQL Test Radiologist Two", "Radiologist"), clock.UtcNow);
+var bloodScope = Scope.For(P(bloodtechUserId, "SQL Test Bloodtech", "Blood Bank Technician"), clock.UtcNow);
+RadiologyOrder? risOrder = null;
+await Test("phase 3 RIS lifecycle enforces CAS and protects authorized reports", async () =>
+{
+    var patient = await service.Register(scope, input with { FirstName = "P3", LastName = "Imaging", Phone = "+91 9000000413" }, ct);
+    risOrder = await radiology.Order(clinical, new RadiologyOrderInput(patient.Id, null, null, "CT Brain plain", "CT", "Brain", "Not applicable", "Urgent", "SQL synthetic stroke workup"), ct);
+    risOrder = await radiology.Schedule(radScope, risOrder.Id, new RadiologyScheduleInput(clock.UtcNow.AddHours(1), risOrder.Version), ct);
+    Assert(risOrder.Accession != null && risOrder.Number.StartsWith("RIS-"));
+    risOrder = await radiology.Perform(radScope, risOrder.Id, new RadiologyPerformInput("1.2.840.113619.2.55.3.604688119.868.1762000001.456", risOrder.Version), ct);
+    var report = await radiology.Report(radScope, risOrder.Id, new RadiologyReportInput("SQL synthetic findings without acute bleed.", "SQL synthetic impression: no acute intracranial abnormality.", false, risOrder.Version), ct);
+    var current = (await uow.ExecuteAsync(scope, s => s.FindRadiologyOrderAsync(risOrder!.Id, ct), ct))!;
+    await Throws("radiology.separation", () => radiology.Authorize(radScope, current.Id, new VersionInput(current.Version), ct));
+    await Throws("concurrency", () => radiology.Authorize(rad2Scope, current.Id, new VersionInput(current.Version - 1), ct));
+    report = await radiology.Authorize(rad2Scope, current.Id, new VersionInput(current.Version), ct);
+    Assert(report.Status == "Authorized" && report.ContentHash!.Length == 64);
+    var tampered = false; try { await ExecSql("UPDATE ris.Reports SET Findings=N'Tampered' WHERE Id=@id", ("id", report.Id)); } catch { tampered = true; }
+    Assert(tampered);
+});
+await Test("phase 3 emergency triage is append-only in SQL", async () =>
+{
+    var er = await emergencySvc.Register(scope, new EmergencyRegistrationInput(null, "SQL Unknown Adult", "Unknown", null, "Ambulance"), ct);
+    var tri = await emergencySvc.Triage(nurseScope, er.Id, new TriageInput("Red", "SQL synthetic crushing chest pain", new(null, null, null, null, null, null)), ct);
+    var tampered = false; try { await ExecSql("UPDATE emergency.TriageAssessments SET Category='Green' WHERE Id=@id", ("id", tri.Id)); } catch { tampered = true; }
+    Assert(tampered);
+});
+await Test("phase 3 theatre overlap and checklist uniqueness hold on SQL", async () =>
+{
+    var patient = await service.Register(scope, input with { FirstName = "P3", LastName = "Theatre", Phone = "+91 9000000414" }, ct);
+    var freeBedId = (Guid)(await Query1("SELECT TOP(1) Id FROM ipd.Beds WHERE HospitalId=@h AND BranchId=@b AND Status='Available' ORDER BY Id", ("h", hospitalId), ("b", branchId)))!;
+    var otAdm = await inpatient.Admit(scope, new AdmissionInput(patient.Id, freeBedId, SeedIds.Doctor, "SQL synthetic admission for theatre flow"), ct);
+    var booking = await otSvc.Request(clinical, new OtBookingInput(otAdm.PatientId, otAdm.Id, "SQL synthetic forearm procedure", "Left", "Left forearm", SeedIds.Doctor, "Local", "Elective"), ct);
+    booking = await otSvc.Schedule(scope, booking.Id, new OtScheduleInput("SQL-OT-1", clock.UtcNow.AddDays(1).AddHours(2), 60, booking.Version), ct);
+    var booking2 = await otSvc.Request(clinical, new OtBookingInput(otAdm.PatientId, otAdm.Id, "SQL synthetic overlapping procedure", "Right", "Right forearm", SeedIds.Doctor, "Local", "Elective"), ct);
+    await Throws("ot.conflict", () => otSvc.Schedule(scope, booking2.Id, new OtScheduleInput("SQL-OT-1", clock.UtcNow.AddDays(1).AddHours(2).AddMinutes(30), 60, booking2.Version), ct));
+    await otSvc.Checklist(clinical, booking.Id, new OtChecklistInput(true, true, true, true, true, "SQL synthetic surgical safety checklist."), ct);
+    await Throws("ot.checklist.exists", () => otSvc.Checklist(clinical, booking.Id, new OtChecklistInput(true, true, true, true, true, "Duplicate checklist attempt."), ct));
+});
+await Test("phase 3 blood issues close immutably and unit numbers stay unique", async () =>
+{
+    var patient = await service.Register(scope, input with { FirstName = "P3", LastName = "Transfusion", Phone = "+91 9000000415", BloodGroup = "B+" }, ct);
+    await bloodBank.ReceiveUnit(bloodScope, new ReceiveUnitInput("SQL-B-01", "O-", "PRBC", DateOnly.FromDateTime(clock.UtcNow.UtcDateTime.AddDays(30)), "SQL synthetic donor"), ct);
+    await Throws("blood.duplicate", () => bloodBank.ReceiveUnit(bloodScope, new ReceiveUnitInput("SQL-B-01", "O-", "PRBC", DateOnly.FromDateTime(clock.UtcNow.UtcDateTime.AddDays(30)), "SQL synthetic donor"), ct));
+    var unitId = (Guid)(await Query1("SELECT Id FROM blood.Units WHERE HospitalId=@h AND UnitNumber='SQL-B-01'", ("h", hospitalId)))!;
+    await bloodBank.Screen(bloodScope, unitId, new ScreeningInput(false, false, false, false, "SQL synthetic clean screening"), ct);
+    await bloodBank.Crossmatch(bloodScope, new CrossmatchInput(unitId, patient.Id), ct);
+    var issue = await bloodBank.Issue(bloodScope, new BloodIssueInput(unitId, patient.Id, null, "SQL synthetic transfusion request"), ct);
+    issue = await bloodBank.Transfuse(clinical, issue.Id, new TransfuseInput("Nil", "SQL synthetic uneventful transfusion", issue.Version), ct);
+    Assert(issue.Status == "Transfused");
+    var tampered = false; try { await ExecSql("UPDATE blood.Issues SET Status='Issued' WHERE Id=@id", ("id", issue.Id)); } catch { tampered = true; }
+    Assert(tampered);
 });
 
 Console.WriteLine($"\n{passed} SQL integration tests passed against SQL Server.");

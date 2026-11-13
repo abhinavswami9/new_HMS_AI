@@ -37,7 +37,7 @@ await Test("invoice prices are resolved server-side", async () => { invoice = aw
 await Test("overpayment is rejected without partial audit writes", async () => { var count = data.Audit.Count; await Throws("payment.overpayment", () => service.Pay(scope, invoice!.Id, new PaymentInput(invoice.Total + 1, "Cash", "TEST-1", invoice.Version), ct)); Assert(data.Audit.Count == count); });
 await Test("payment reference retries are idempotent", async () => { var payment = new PaymentInput(invoice!.Total, "Cash", "TEST-UNIQUE", invoice.Version); invoice = await service.Pay(scope, invoice.Id, payment, ct); Assert(invoice.Status == "Paid"); var count = data.Audit.Count; var retry = await service.Pay(scope, invoice.Id, payment, ct); Assert(retry.Payments.Count == 1 && data.Audit.Count == count); await Throws("payment.idempotency", () => service.Pay(scope, invoice.Id, payment with { Amount = 1 }, ct)); });
 await Test("module disabling blocks new work but retains records", async () => { await service.SetModule(scope, "billing", false, "Planned billing maintenance window.", ct); await Throws("module.disabled", () => service.CreateInvoice(scope, new InvoiceInput(registered!.Id, [new(data.Services[0].Id, 1)]), ct)); Assert(data.Invoices.Any(i => i.Id == invoice!.Id)); await service.SetModule(scope, "billing", true, "Maintenance completed and verified.", ct); });
-await Test("later-phase modules cannot be enabled by configuration", async () => { await Throws("module.unavailable", () => service.SetModule(scope, "radiology", true, "Attempted early activation.", ct)); });
+await Test("later-phase modules cannot be enabled by configuration", async () => { await Throws("module.unavailable", () => service.SetModule(scope, "insurance", true, "Attempted early activation.", ct)); });
 await Test("failed login is retained and successful sessions are revocable", async () => { await Throws("auth.failed", () => service.Login(new LoginInput("admin", "incorrect"), SeedIds.Hospital, SeedIds.Branch, ct, "203.0.113.10")); Assert(data.Logins.Any(l => !l.Success && l.SourceIp == "203.0.113.10")); var auth = await service.Login(new LoginInput("admin", "Preview!2026"), SeedIds.Hospital, SeedIds.Branch, ct, "203.0.113.10"); Assert(await service.Authenticate(auth.Token, SeedIds.Hospital, SeedIds.Branch, ct) is not null); await service.Logout(auth.Token, SeedIds.Hospital, SeedIds.Branch, ct); Assert(await service.Authenticate(auth.Token, SeedIds.Hospital, SeedIds.Branch, ct) is null); Assert(data.Audit.Any(a => a.Action == "auth.logout")); });
 await Test("sessions are bound to the configured hospital branch", async () => { var auth = await service.Login(new LoginInput("admin", "Preview!2026"), SeedIds.Hospital, SeedIds.Branch, ct); Assert(await service.Authenticate(auth.Token, SeedIds.Hospital, Guid.NewGuid(), ct) is null); await Throws("auth.failed", () => service.Login(new LoginInput("admin", "Preview!2026"), SeedIds.Hospital, Guid.NewGuid(), ct)); await service.Logout(auth.Token, SeedIds.Hospital, SeedIds.Branch, ct); });
 await Test("patient chart access is audited and clinical visibility is scoped", async () => { var chart = await service.GetChart(clinical, registered!.Id, ct); Assert(chart.Encounters.All(e => e.DoctorId == doctor.Id)); Assert(chart.Invoices.Count == 0); Assert(data.Audit.Any(a => a.Action == "patient.chart.viewed" && a.ActorId == doctor.Id)); });
@@ -64,6 +64,99 @@ await Test("LIS order and specimen collection allocate barcode/accession", async
 await Test("LIS result validation enforces role separation and critical alerting", async () => { labOrder = await laboratory.Process(labScope, labOrder!.Id, new VersionInput(labOrder.Version), ct); var result = await laboratory.EnterResult(labScope, labOrder.Id, new LabResultInput("6.5", "g/dL", null, null, data.LabOrders.First(o => o.Id == labOrder.Id).Version), ct); Assert(result.Flag == "Critical low"); Assert(data.CriticalAlerts.Any(a => a.EntityId == labOrder.Id && a.Kind == "Laboratory")); var order = data.LabOrders.First(o => o.Id == labOrder.Id); await Throws("lab.separation", () => laboratory.Validate(labScope, order.Id, new VersionInput(order.Version), ct)); await laboratory.Validate(labValidateScope, order.Id, new VersionInput(order.Version), ct); order = data.LabOrders.First(o => o.Id == labOrder.Id); var authorized = await laboratory.Authorize(pathScope, order.Id, new VersionInput(order.Version), ct); Assert(authorized.ContentHash!.Length == 64); Assert(data.LabOrders.First(o => o.Id == labOrder.Id).Status == "Authorized"); });
 await Test("critical alerts require acknowledgement note and become immutable", async () => { var alert = data.CriticalAlerts.First(a => a.Kind == "Laboratory" && a.Status == "Open" && a.EntityId == labOrder!.Id); var ack = await laboratory.AcknowledgeAlert(clinical, alert.Id, new AlertAcknowledgeInput("Synthetic clinician acknowledgement and escalation."), ct); Assert(ack.Status == "Acknowledged"); await Throws("alert.state", () => laboratory.AcknowledgeAlert(clinical, alert.Id, new AlertAcknowledgeInput("Duplicate acknowledgement."), ct)); });
 await Test("specimen rejection preserves reason and blocks further processing", async () => { var order = await laboratory.Order(clinical, new LabOrderInput(ipdPatient!.Id, data.LabTests[1].Id, null, null, "Routine", ""), ct); order = await laboratory.Collect(labScope, order.Id, new CollectSpecimenInput("Blood", 2, order.Version), ct); order = await laboratory.Reject(labScope, order.Id, new VersionInput(order.Version, "Hemolysed synthetic specimen"), ct); Assert(order.Status == "Rejected"); await Throws("lab.state", () => laboratory.Process(labScope, order.Id, new VersionInput(order.Version), ct)); });
+
+// Phase 3: RIS, emergency, operation theatre and blood bank
+var radiologistUser = data.Users.First(u => u.UserName == "radiologist"); var radiologistScope = Scope.For(new Principal(radiologistUser.Id, radiologistUser.DisplayName, radiologistUser.Role, radiologistUser.HospitalId, radiologistUser.BranchId), clock.UtcNow);
+var radiologist2User = data.Users.First(u => u.UserName == "radiologist2"); var radiologist2Scope = Scope.For(new Principal(radiologist2User.Id, radiologist2User.DisplayName, radiologist2User.Role, radiologist2User.HospitalId, radiologist2User.BranchId), clock.UtcNow);
+var bloodtechUser = data.Users.First(u => u.UserName == "bloodtech"); var bloodScope = Scope.For(new Principal(bloodtechUser.Id, bloodtechUser.DisplayName, bloodtechUser.Role, bloodtechUser.HospitalId, bloodtechUser.BranchId), clock.UtcNow);
+var radiology = new RadiologyService(uow, clock); var emergencySvc = new EmergencyService(uow, clock); var otSvc = new OtService(uow, clock); var bloodBank = new BloodBankService(uow, clock);
+RadiologyOrder? risOrder = null;
+await Test("radiology ordering allocates RIS numbers and validates laterality and study UIDs", async () =>
+{
+    await Throws("phase3.laterality", () => radiology.Order(clinical, new RadiologyOrderInput(ipdPatient!.Id, null, null, "X-ray knee", "X-ray", "Knee", "Not applicable", "Routine", "Synthetic knee pain review"), ct));
+    risOrder = await radiology.Order(clinical, new RadiologyOrderInput(ipdPatient!.Id, null, null, "CT Brain plain", "CT", "Brain", "Not applicable", "Urgent", "Synthetic acute onset deficit"), ct);
+    Assert(risOrder.Number.StartsWith("RIS-") && risOrder.Status == "Ordered");
+    await Throws("radiology.schedule", () => radiology.Schedule(radiologistScope, risOrder!.Id, new RadiologyScheduleInput(clock.UtcNow.AddMinutes(-60), risOrder.Version), ct));
+    risOrder = await radiology.Schedule(radiologistScope, risOrder!.Id, new RadiologyScheduleInput(clock.UtcNow.AddHours(2), risOrder.Version), ct);
+    Assert(risOrder.Accession!.StartsWith("ACC-R-"));
+    await Throws("radiology.uid", () => radiology.Perform(radiologistScope, risOrder!.Id, new RadiologyPerformInput("not-a-study-uid", risOrder.Version), ct));
+    risOrder = await radiology.Perform(radiologistScope, risOrder!.Id, new RadiologyPerformInput("1.2.840.113619.2.55.3.604688119.868.1762000000.123", risOrder.Version), ct);
+    Assert(risOrder.Status == "Performed" && risOrder.StudyUid!.StartsWith("1."));
+});
+await Test("radiology critical reporting raises alerts and authorization enforces separation", async () =>
+{
+    var report = await radiology.Report(radiologistScope, risOrder!.Id, new RadiologyReportInput("Synthetic acute hypodensity in the right middle cerebral artery territory.", "Synthetic acute infarct. Critical result communicated.", true, risOrder.Version), ct);
+    Assert(data.CriticalAlerts.Any(a => a.EntityId == risOrder!.Id && a.Kind == "Radiology" && a.Status == "Open"));
+    var reportedVersion = data.RadiologyOrders.First(o => o.Id == risOrder!.Id).Version;
+    await Throws("radiology.separation", () => radiology.Authorize(radiologistScope, risOrder!.Id, new VersionInput(reportedVersion), ct));
+    await Throws("concurrency", () => radiology.Authorize(radiologist2Scope, risOrder!.Id, new VersionInput(reportedVersion - 1), ct));
+    var authorized = await radiology.Authorize(radiologist2Scope, risOrder!.Id, new VersionInput(reportedVersion), ct);
+    Assert(authorized.Status == "Authorized" && authorized.ContentHash!.Length == 64);
+    await Throws("radiology.state", () => radiology.Cancel(scope, risOrder!.Id, new VersionInput(data.RadiologyOrders.First(o => o.Id == risOrder!.Id).Version), ct));
+});
+await Test("emergency identity mismatch and triage categories are enforced", async () =>
+{
+    await Throws("emergency.identity", () => emergencySvc.Register(clinical, new EmergencyRegistrationInput(data.Patients[0].Id, "Wrong Name", "Female", null, "Walk-in"), ct));
+    await Throws("emergency.triage", () => emergencySvc.Triage(nurseScope, data.EmergencyRegistrations.First(r => r.Status == "Open").Id, new TriageInput("Orange", "Synthetic invalid category", new(null, null, null, null, null, null)), ct));
+});
+EmergencyRegistration? er = null;
+await Test("emergency-to-admission disposition creates an inpatient episode", async () =>
+{
+    er = await emergencySvc.Register(clinical, new EmergencyRegistrationInput(data.Patients[3].Id, data.Patients[3].FullName, "Male", null, "Ambulance"), ct);
+    await emergencySvc.Triage(nurseScope, er.Id, new TriageInput("Red", "Synthetic crushing chest pain with diaphoresis", new(36.8m, 110, 140, 90, null, 94)), ct);
+    await emergencySvc.Observe(clinical, er.Id, new EmergencyObservationInput("Synthetic observation: pain responding to initial analgesia.", new(null, 96, 132, 84, null, 96)), ct);
+    var bed = data.Beds.First(b => b.Status == "Available");
+    er = await emergencySvc.Dispose(clinical, er.Id, new DispositionInput("Admit", "Synthetic admission for monitored cardiac care.", bed.Id, SeedIds.Doctor, null), ct);
+    Assert(er.Status == "Dispositioned");
+    Assert(data.Admissions.Any(a => a.PatientId == data.Patients[3].Id && a.Status == "Active" && a.BedId == bed.Id));
+    await Throws("emergency.state", () => emergencySvc.Triage(nurseScope, er.Id, new TriageInput("Green", "Synthetic post-disposition attempt", new(null, null, null, null, null, null)), ct));
+});
+await Test("theatre scheduling rejects overlaps and time-in requires the safety checklist", async () =>
+{
+    var otAdmission = data.Admissions.First(a => a.Status == "Active");
+    var booking = await otSvc.Request(clinical, new OtBookingInput(otAdmission.PatientId, otAdmission.Id, "Synthetic forearm incision and drainage", "Left", "Left forearm", SeedIds.Doctor, "Local", "Elective"), ct);
+    await Throws("ot.conflict", () => otSvc.Schedule(scope, booking.Id, new OtScheduleInput("OT-1", clock.UtcNow.AddDays(1).AddMinutes(-30), 60, booking.Version), ct));
+    booking = await otSvc.Schedule(scope, booking.Id, new OtScheduleInput("OT-3", clock.UtcNow.AddDays(2).AddHours(3), 45, booking.Version), ct);
+    await otSvc.Checklist(clinical, booking.Id, new OtChecklistInput(true, true, true, true, true, "Synthetic surgical safety checklist completed."), ct);
+    await Throws("ot.checklist.exists", () => otSvc.Checklist(clinical, booking.Id, new OtChecklistInput(true, true, true, true, true, "Duplicate checklist attempt."), ct));
+    await Throws("concurrency", () => otSvc.TimeIn(clinical, booking.Id, new VersionInput(booking.Version - 1), ct));
+    booking = await otSvc.TimeIn(clinical, booking.Id, new VersionInput(booking.Version), ct);
+    booking = await otSvc.TimeOut(clinical, booking.Id, new VersionInput(booking.Version), ct);
+    booking = await otSvc.Complete(clinical, booking.Id, new OtCompleteInput("Synthetic procedure note: abscess drained, hemostasis achieved.", booking.Version), ct);
+    Assert(booking.Status == "Completed" && booking.TimeIn.HasValue && booking.TimeOut!.Value >= booking.TimeIn.Value);
+    await Throws("ot.state", () => otSvc.Cancel(scope, booking.Id, new VersionInput(booking.Version), ct));
+});
+await Test("blood screening quarantine and crossmatch compatibility are enforced", async () =>
+{
+    await bloodBank.ReceiveUnit(bloodScope, new ReceiveUnitInput("SYN-B-01", "B+", "PRBC", scope.Today.AddDays(28), "Synthetic voluntary donor"), ct);
+    var unit = await bloodBank.Screen(bloodScope, data.BloodUnits.First(u => u.UnitNumber == "SYN-B-01").Id, new ScreeningInput(true, false, false, false, "Synthetic reactive screening"), ct);
+    Assert(unit.Status == "Discarded");
+    await bloodBank.ReceiveUnit(bloodScope, new ReceiveUnitInput("SYN-B-02", "A+", "FFP", scope.Today.AddDays(90), "Synthetic voluntary donor"), ct);
+    await bloodBank.Screen(bloodScope, data.BloodUnits.First(u => u.UnitNumber == "SYN-B-02").Id, new ScreeningInput(false, false, false, false, "Synthetic clean screening"), ct);
+    await Throws("blood.incompatible", () => bloodBank.Crossmatch(bloodScope, new CrossmatchInput(data.BloodUnits.First(u => u.UnitNumber == "SYN-B-02").Id, data.Patients[0].Id), ct));
+    await bloodBank.ReceiveUnit(bloodScope, new ReceiveUnitInput("SYN-B-03", "O-", "PRBC", scope.Today.AddDays(35), "Synthetic voluntary donor"), ct);
+    await bloodBank.Screen(bloodScope, data.BloodUnits.First(u => u.UnitNumber == "SYN-B-03").Id, new ScreeningInput(false, false, false, false, "Synthetic clean screening"), ct);
+    var xm = await bloodBank.Crossmatch(bloodScope, new CrossmatchInput(data.BloodUnits.First(u => u.UnitNumber == "SYN-B-03").Id, data.Patients[1].Id), ct);
+    Assert(xm.Compatibility == "Compatible" && xm.Number.StartsWith("XM-"));
+    Assert(data.BloodUnits.First(u => u.UnitNumber == "SYN-B-03").Status == "Reserved");
+});
+await Test("transfusion reactions raise blood alerts and closed issues are immutable", async () =>
+{
+    var unitId = data.BloodUnits.First(u => u.UnitNumber == "SYN-B-03").Id;
+    var issue = await bloodBank.Issue(bloodScope, new BloodIssueInput(unitId, data.Patients[1].Id, null, "Synthetic transfusion request"), ct);
+    Assert(issue.Number.StartsWith("BLD-"));
+    await Throws("forbidden", () => bloodBank.Transfuse(bloodScope, issue.Id, new TransfuseInput("Rigors and chills", "Synthetic reaction", issue.Version), ct));
+    issue = await bloodBank.Transfuse(clinical, issue.Id, new TransfuseInput("Rigors and chills", "Synthetic transfusion reaction", issue.Version), ct);
+    Assert(data.CriticalAlerts.Any(a => a.EntityId == issue.Id && a.Kind == "Blood" && a.Status == "Open"));
+    await Throws("blood.state", () => bloodBank.Transfuse(clinical, issue.Id, new TransfuseInput("Nil", "Duplicate attempt", issue.Version), ct));
+    await bloodBank.ReceiveUnit(bloodScope, new ReceiveUnitInput("SYN-B-04", "O-", "PRBC", scope.Today.AddDays(35), "Synthetic voluntary donor"), ct);
+    await bloodBank.Screen(bloodScope, data.BloodUnits.First(u => u.UnitNumber == "SYN-B-04").Id, new ScreeningInput(false, false, false, false, "Synthetic clean screening"), ct);
+    await bloodBank.Crossmatch(bloodScope, new CrossmatchInput(data.BloodUnits.First(u => u.UnitNumber == "SYN-B-04").Id, data.Patients[1].Id), ct);
+    var issue2 = await bloodBank.Issue(bloodScope, new BloodIssueInput(data.BloodUnits.First(u => u.UnitNumber == "SYN-B-04").Id, data.Patients[1].Id, null, "Synthetic issue for return flow"), ct);
+    var returned = await bloodBank.Return(bloodScope, issue2.Id, new ReturnInput(false, "Synthetic cold chain excursion; not fit for reissue.", issue2.Version), ct);
+    Assert(returned.Status == "Returned");
+    Assert(data.BloodUnits.First(u => u.UnitNumber == "SYN-B-04").Status == "Discarded");
+});
 
 Console.WriteLine($"\n{passed} application/domain tests passed. SQL Server integration tests are a separate release gate.");
 sealed class TestClock : IClock { public DateTimeOffset UtcNow { get; } = new(2026, 11, 13, 10, 0, 0, TimeSpan.Zero); }

@@ -28,8 +28,16 @@ export function Avatar({
     </span>
   );
 }
-export function Badge({ status }: { status: string }) {
-  const tone: Record<string, string> = {
+export function Badge({
+  status,
+  tone,
+  children,
+}: {
+  status?: string;
+  tone?: string;
+  children?: ReactNode;
+}) {
+  const tones: Record<string, string> = {
     Booked: "blue",
     "Checked in": "amber",
     "In consultation": "teal",
@@ -51,7 +59,7 @@ export function Badge({ status }: { status: string }) {
     Acknowledged: "green",
     Routine: "gray",
     Urgent: "amber",
-    STAT: "amber",
+    STAT: "red",
     OPD: "blue",
     IPD: "teal",
     Assessment: "teal",
@@ -67,11 +75,28 @@ export function Badge({ status }: { status: string }) {
     Open: "amber",
     Depleted: "gray",
     Quarantined: "amber",
+    Scheduled: "blue",
+    Performed: "teal",
+    Reported: "blue",
+    Critical: "red",
+    Red: "red",
+    Yellow: "amber",
+    Green: "green",
+    Black: "gray",
+    "In Theatre": "amber",
+    Recovery: "purple",
+    Reserved: "teal",
+    Transfused: "green",
+    Returned: "gray",
+    Discarded: "gray",
+    Dispositioned: "gray",
+    Transfusion: "red",
   };
+  const text = status ?? (typeof children === "string" ? children : "");
   return (
-    <span className={`badge ${tone[status] || "gray"}`}>
+    <span className={`badge ${tone ?? tones[text] ?? "gray"}`}>
       <span />
-      {status}
+      {children ?? status}
     </span>
   );
 }
@@ -101,6 +126,28 @@ export function PageHeader({
   );
 }
 export function Modal({
+  open = true,
+  title,
+  subtitle,
+  children,
+  onClose,
+  wide = false,
+}: {
+  open?: boolean;
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+  onClose: () => void;
+  wide?: boolean;
+}) {
+  if (!open) return null;
+  return (
+    <ModalInner title={title} subtitle={subtitle} onClose={onClose} wide={wide}>
+      {children}
+    </ModalInner>
+  );
+}
+function ModalInner({
   title,
   subtitle,
   children,
@@ -256,16 +303,24 @@ export function ErrorNote({ children }: { children: ReactNode }) {
   );
 }
 export function Submit({
-  busy,
+  busy = false,
+  label,
+  tone,
   children,
 }: {
-  busy: boolean;
-  children: ReactNode;
+  busy?: boolean;
+  label?: string;
+  tone?: string;
+  children?: ReactNode;
 }) {
   return (
-    <button className="btn primary" type="submit" disabled={busy}>
+    <button
+      className={`btn ${tone === "danger" ? "danger-outline" : "primary"}`}
+      type="submit"
+      disabled={busy}
+    >
       {busy && <LoaderCircle size={16} className="spin" />}
-      {busy ? "Saving…" : children}
+      {busy ? "Saving…" : (label ?? children)}
     </button>
   );
 }

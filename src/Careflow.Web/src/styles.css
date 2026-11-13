@@ -443,6 +443,8 @@ strong {
   display: flex;
   flex-direction: column;
   padding: 26px 16px 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 .brand {
   display: flex;
@@ -4309,4 +4311,64 @@ input[type="datetime-local"] {
   .bed-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Phase 3 workspace surfaces */
+.badge.red {
+  background: color-mix(in srgb, #e5484d 16%, transparent);
+  color: #e5484d;
+}
+.btn.small {
+  padding: 6px 11px;
+  font-size: 12.5px;
+  border-radius: 10px;
+}
+.btn.ghost {
+  background: transparent;
+  border: 1px solid var(--line, #d8dde5);
+}
+.btn.danger {
+  background: #e5484d;
+  color: #fff;
+}
+.toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 14px 0;
+  flex-wrap: wrap;
+}
+.toolbar select {
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line, #d8dde5);
+  background: transparent;
+}
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.check-row {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  padding: 8px 2px;
+  font-size: 13.5px;
+}
+.section-title {
+  margin: 26px 0 10px;
+  font-size: 16px;
+}
+.banner {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin: 12px 0;
+}
+.banner.error {
+  background: color-mix(in srgb, #e5484d 10%, transparent);
+  border: 1px solid color-mix(in srgb, #e5484d 30%, transparent);
 }

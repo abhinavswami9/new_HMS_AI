@@ -285,7 +285,7 @@ public sealed class HospitalService(IUnitOfWork unitOfWork, IClock clock, IPassw
     {
         scope.Require(Permissions.Admin);
         var module = await s.FindModuleAsync(key, ct) ?? await Missing<ModuleSetting>("Module");
-        if (module.Phase > 2 && enabled) throw new DomainException("module.unavailable", "This module has not passed its implementation and release gates.");
+        if (module.Phase > 3 && enabled) throw new DomainException("module.unavailable", "This module has not passed its implementation and release gates.");
         if (key == "nursing" && enabled && await s.FindModuleAsync("ipd", ct) is not { Enabled: true }) throw new DomainException("module.dependency", "Enable inpatient management before nursing.");
         if (key == "ipd" && !enabled && (await s.FindModuleAsync("nursing", ct) is { Enabled: true } || await s.HasActiveAdmissionsAsync(ct))) throw new DomainException("module.dependency", "Disable nursing and complete active admissions before disabling inpatient management.");
         if (reason.Trim().Length < 10) throw new DomainException("policy.reason", "Record a configuration-change reason of at least 10 characters.");

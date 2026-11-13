@@ -27,6 +27,12 @@ public sealed class MemoryUnitOfWork(DemoData initial) : IUnitOfWork, IDisposabl
             data.Handovers = candidate.Handovers; data.StockBatches = candidate.StockBatches; data.StockMovements = candidate.StockMovements; data.Dispenses = candidate.Dispenses;
             data.LabTests = candidate.LabTests; data.LabOrders = candidate.LabOrders; data.LabResults = candidate.LabResults; data.CriticalAlerts = candidate.CriticalAlerts;
             data.Policies = candidate.Policies;
+            data.RadiologyOrders = candidate.RadiologyOrders; data.RadiologyReports = candidate.RadiologyReports;
+            data.EmergencyRegistrations = candidate.EmergencyRegistrations; data.TriageAssessments = candidate.TriageAssessments;
+            data.EmergencyObservations = candidate.EmergencyObservations; data.EmergencyDispositions = candidate.EmergencyDispositions;
+            data.OtBookings = candidate.OtBookings; data.OtChecklists = candidate.OtChecklists;
+            data.BloodUnits = candidate.BloodUnits; data.BloodScreenings = candidate.BloodScreenings;
+            data.Crossmatches = candidate.Crossmatches; data.BloodIssues = candidate.BloodIssues;
             return result;
         }
         finally { gate.Release(); }
