@@ -58,7 +58,19 @@ public sealed partial class MemoryHospitalStore
             Transfers = p.Contains(Permissions.InventoryRead) ? Take(data.InventoryTransfers) : [],
             CssdSets = p.Contains(Permissions.CssdRead) ? Take(data.InstrumentSets) : [],
             CssdCycles = p.Contains(Permissions.CssdRead) ? Take(data.SterilizerCycles) : [],
-            CssdIssues = p.Contains(Permissions.CssdRead) ? Take(data.CssdIssues) : []
+            CssdIssues = p.Contains(Permissions.CssdRead) ? Take(data.CssdIssues) : [],
+            Infections = p.Contains(Permissions.QualityRead) ? Take(data.Infections.OrderByDescending(x => x.ReportedAt)) : [],
+            Incidents = p.Contains(Permissions.QualityRead) ? Take(data.Incidents.OrderByDescending(x => x.ReportedAt)) : [],
+            Risks = p.Contains(Permissions.QualityRead) ? Take(data.Risks.OrderByDescending(x => x.AssessedAt)) : [],
+            Capas = p.Contains(Permissions.QualityRead) ? Take(data.Capas.OrderByDescending(x => x.CreatedAt)) : [],
+            Audits = p.Contains(Permissions.QualityRead) ? Take(data.Audits.OrderByDescending(x => x.CreatedAt)) : [],
+            QualityIndicators = p.Contains(Permissions.QualityRead) ? Take(data.QualityIndicators) : [],
+            IndicatorResults = p.Contains(Permissions.QualityRead) ? Take(data.IndicatorResults.OrderByDescending(x => x.RecordedAt)) : [],
+            QualityDocuments = p.Contains(Permissions.QualityRead) ? Take(data.QualityDocuments) : [],
+            PortalAccounts = p.Contains(Permissions.PortalAdmin) ? Take(data.PortalAccounts) : [],
+            ProxyGrants = p.Contains(Permissions.PortalAdmin) ? Take(data.ProxyGrants) : [],
+            ReportDefinitions = p.Contains(Permissions.ReportRead) ? Take(data.ReportDefinitions) : [],
+            ReportExecutions = p.Contains(Permissions.ReportRead) ? Take(data.ReportExecutions.OrderByDescending(x => x.ExecutedAt)) : []
         };
         return Task.FromResult(care);
     }

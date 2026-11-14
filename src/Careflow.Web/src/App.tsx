@@ -44,6 +44,9 @@ import {
   FileCheck2,
   Package,
   Video,
+  BarChart3,
+  ShieldAlert,
+  UserCheck,
 } from "lucide-react";
 import { AppProvider, useApp } from "./store";
 import { Avatar, Empty, Modal } from "./components";
@@ -66,6 +69,10 @@ import { Incentives } from "./pages/Incentives";
 import { Telemedicine } from "./pages/Telemedicine";
 import { Inventory } from "./pages/Inventory";
 import { CSSD } from "./pages/CSSD";
+import { Quality } from "./pages/Quality";
+import { Portal } from "./pages/Portal";
+import { Reports } from "./pages/Reports";
+import { PortalHome } from "./pages/PortalHome";
 const mainNav = [
   { to: "/", label: "Overview", icon: LayoutDashboard },
   { to: "/patients", label: "Patients", icon: Users },
@@ -165,6 +172,27 @@ const careNav = [
     module: "cssd",
     permission: "cssd.read",
   },
+  {
+    to: "/quality",
+    label: "Quality",
+    icon: ShieldAlert,
+    module: "quality",
+    permission: "quality.read",
+  },
+  {
+    to: "/portal",
+    label: "Patient Portal",
+    icon: UserCheck,
+    module: "portal",
+    permission: "portal.admin",
+  },
+  {
+    to: "/reports",
+    label: "Reporting",
+    icon: BarChart3,
+    module: "reports",
+    permission: "report.read",
+  },
 ];
 export default function App() {
   return (
@@ -231,6 +259,13 @@ function Shell() {
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, []);
+  if (
+    user &&
+    user.role !== "Login" &&
+    user.permissions.includes("portal.read") &&
+    !user.permissions.includes("patient.read")
+  )
+    return <PortalHome />;
   const page =
     mainNav.find((n) => n.to === location.pathname)?.label ||
     (location.pathname.startsWith("/patients/")
@@ -393,6 +428,10 @@ function Shell() {
                     "Accountant",
                     "Store Manager",
                     "CSSD Technician",
+                    "Quality Manager",
+                    "Infection Control Nurse",
+                    "Department Head",
+                    "Patient",
                   ].map((r) => (
                     <option key={r}>{r}</option>
                   ))}
@@ -469,7 +508,7 @@ function Shell() {
             <ShieldCheck size={13} />
             <span>Synthetic preview · no real patient data</span>
             <span className="demo-ribbon-right">
-              Phase 4 <span>·</span> Connected to the Careflow API
+              Phase 5 <span>·</span> Connected to the Careflow API
             </span>
           </div>
         )}
@@ -583,6 +622,30 @@ function Shell() {
               element={
                 <CareRoute module="cssd" permission="cssd.read">
                   <CSSD />
+                </CareRoute>
+              }
+            />
+            <Route
+              path="/quality"
+              element={
+                <CareRoute module="quality" permission="quality.read">
+                  <Quality />
+                </CareRoute>
+              }
+            />
+            <Route
+              path="/portal"
+              element={
+                <CareRoute module="portal" permission="portal.admin">
+                  <Portal />
+                </CareRoute>
+              }
+            />
+            <Route
+              path="/reports"
+              element={
+                <CareRoute module="reports" permission="report.read">
+                  <Reports />
                 </CareRoute>
               }
             />

@@ -14,7 +14,7 @@ type Context = {
   truncated: boolean;
   user: Principal;
   demo: boolean;
-  refresh: () => Promise<void>;
+  refresh: (as?: Principal | null) => Promise<void>;
   notify: (message: string, kind?: "success" | "error") => void;
   toast: { message: string; kind: string } | null;
   switchRole: (role: string) => Promise<void>;
@@ -35,13 +35,95 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setToast({ message, kind }),
     [],
   );
-  const refresh = useCallback(async () => {
-    const result = await api<{ workspace: Workspace; truncated: boolean }>(
-      "/workspace",
-    );
-    setData(result.workspace);
-    setTruncated(result.truncated);
-  }, []);
+  const emptyShell = (name: string, role: string): Workspace =>
+    ({
+      hospitalName: "Careflow Hospitals",
+      branchName: "Central",
+      userName: name,
+      role,
+      clock: new Date().toISOString(),
+      metrics: [],
+      recentPatients: [],
+      patients: [],
+      doctors: [],
+      services: [],
+      medicines: [],
+      appointments: [],
+      encounters: [],
+      invoices: [],
+      auditEvents: [],
+      roles: [],
+      users: [],
+      activity: [],
+      labs: [],
+      labOrders: [],
+      radiologyReports: [],
+      prescriptions: [],
+      dispenses: [],
+      admissions: [],
+      beds: [],
+      wards: [],
+      nurses: [],
+      assessments: [],
+      medicationAdministrations: [],
+      handovers: [],
+      surgicalCases: [],
+      theatres: [],
+      checklists: [],
+      implants: [],
+      hrStaff: [],
+      shifts: [],
+      attendances: [],
+      leaves: [],
+      payroll: [],
+      payrollRuns: [],
+      incentives: [],
+      incentiveRuns: [],
+      coverage: [],
+      claims: [],
+      telemedicine: [],
+      diets: [],
+      dietOrders: [],
+      bloodUnits: [],
+      bloodIssues: [],
+      donors: [],
+      cssdSets: [],
+      cssdCycles: [],
+      cssdIssues: [],
+      infections: [],
+      incidents: [],
+      risks: [],
+      capas: [],
+      audits: [],
+      qualityIndicators: [],
+      indicatorResults: [],
+      qualityDocuments: [],
+      portalAccounts: [],
+      proxyGrants: [],
+      reportDefinitions: [],
+      reportExecutions: [],
+      modules: [],
+      truncated: false,
+    }) as unknown as Workspace;
+  const refresh = useCallback(async (as?: Principal | null) => {
+    const who = as ?? user;
+    try {
+      const result = await api<{ workspace: Workspace; truncated: boolean }>(
+        "/workspace",
+      );
+      setData(result.workspace);
+      setTruncated(result.truncated);
+    } catch (e) {
+      // Patient-facing portal principals have no staff workspace payload; give
+      // the app a shell so the portal audience can render against portal APIs.
+      if (who && !who.permissions.includes("patient.read")) {
+        setData(emptyShell(who.name, who.role));
+        setTruncated(false);
+        return;
+      }
+      throw e;
+    }
+  }, [user]);
   const boot = useCallback(async () => {
     try {
       const config = await api<{ demo: boolean; principal: Principal | null }>(
@@ -63,7 +145,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return;
       }
       setUser(me);
-      await refresh();
+      await refresh(me);
       setError("");
     } catch (e) {
       setError(
@@ -89,7 +171,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const p = await api<Principal>("/auth/demo", "POST", { role });
       setUser(p);
-      await refresh();
+      await refresh(p);
       notify(`Viewing as ${role}`);
     } catch (e) {
       notify((e as Error).message, "error");

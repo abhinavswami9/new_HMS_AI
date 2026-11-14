@@ -330,6 +330,7 @@ await Test("phase 2 discharge requires a summary and releases the bed", async ()
 var radiology = new RadiologyService(uow, clock); var emergencySvc = new EmergencyService(uow, clock); var otSvc = new OtService(uow, clock); var bloodBank = new BloodBankService(uow, clock);
 var insuranceSvc = new InsuranceService(uow, clock); var incentiveSvc = new IncentiveService(uow, clock); var teleSvc = new TelemedicineService(uow, clock);
 var inventorySvc = new InventoryService(uow, clock); var cssdSvc = new CssdService(uow, clock);
+var qualitySvc = new QualityService(uow, clock); var portalSvc = new PortalService(uow, clock); var reportingSvc = new ReportingService(uow, clock);
 var radUserId = Guid.NewGuid(); var rad2UserId = Guid.NewGuid(); var bloodtechUserId = Guid.NewGuid();
 await Test("phase 3 role users bootstrap for RIS and blood bank", async () =>
 {
@@ -421,6 +422,42 @@ await Test("phase 4 CSSD cycles release with indicators and stay immutable when 
     var tampered = false; try { await ExecSql("UPDATE cssd.Cycles SET Status='Running' WHERE Id=@id", ("id", cycle.Id)); } catch { tampered = true; }
     Assert(tampered);
     var appendOnly = false; try { await ExecSql("DELETE FROM cssd.CycleIndicators WHERE CycleId=@id", ("id", cycle.Id)); } catch { appendOnly = true; }
+    Assert(appendOnly);
+});
+
+await Test("phase 5 quality CAPA requires effectiveness and closed records stay immutable", async () =>
+{
+    var incident = await qualitySvc.ReportIncident(scope, new IncidentInput("Medication", "Moderate", "SQL synthetic near miss on the ward trolley during the night shift.", "Ward 1", null), ct);
+    incident = await qualitySvc.TriageIncident(scope, incident.Id, new IncidentTriageInput("Assign to the medication safety owner.", "SQL Quality Manager", incident.Version), ct);
+    var capa = await qualitySvc.OpenCapa(scope, new CapaInput(incident.Id, null, null, null, "Quarantined the affected lot.", "Tall-man lettering on labels.", "Quarterly spot checks.", "SQL Quality Manager", clock.UtcNow.AddDays(20)), ct);
+    await Throws("quality.state", () => qualitySvc.CloseCapa(scope, capa.Id, new CapaCloseInput("Attempting closure without verification.", capa.Version), ct));
+    capa = await qualitySvc.VerifyCapa(scope, capa.Id, new CapaVerifyInput("Three spot checks passed with photo evidence.", capa.Version), ct);
+    capa = await qualitySvc.CloseCapa(scope, capa.Id, new CapaCloseInput("Effectiveness verified.", capa.Version), ct);
+    Assert((await Query1("SELECT Status FROM quality.CAPA WHERE Id=@id", ("id", capa.Id)))?.ToString() == "Closed");
+    var tampered = false; try { await ExecSql("UPDATE quality.CAPA SET Status='Open' WHERE Id=@id", ("id", capa.Id)); } catch { tampered = true; }
+    Assert(tampered);
+    var doc = await qualitySvc.CreateDocument(scope, new DocumentInput("SQL Waste Segregation SOP", "SOP", "SQL Quality Manager", "Initial issue.", "Segregate waste into colour-coded bins at the point of generation."), ct);
+    doc = await qualitySvc.SubmitDocument(scope, doc.Id, new DocumentTransitionInput("Ready for review.", doc.Version), ct);
+    doc = await qualitySvc.ApproveDocument(scope, doc.Id, new DocumentTransitionInput("Reviewed against policy.", doc.Version), ct);
+    var appendOnly = false; try { await ExecSql("DELETE FROM quality.DocumentVersions WHERE DocumentId=@id", ("id", doc.Id)); } catch { appendOnly = true; }
+    Assert(appendOnly);
+});
+await Test("phase 5 portal linkage is unique and revoked proxy grants stay revoked", async () =>
+{
+    var patient = await service.Register(scope, new PatientInput("SQL", "Portal", new DateOnly(1992, 2, 2), "Other", "+91 9000000222", $"sql-portal-{runTag}@example.com"), ct);
+    var account = await portalSvc.Register(scope, new PortalRegisterInput(patient.Id, adminUserId, "sql.portal.user", "SQL synthetic in-person verification at the desk."), ct);
+    Assert((await Query1("SELECT Status FROM portal.Accounts WHERE Id=@id", ("id", account.Id)))?.ToString() == "Pending");
+    account = await portalSvc.VerifyAccount(scope, account.Id, new PortalVerifyInput("SQL Test Admin", account.Version), ct);
+    Assert(account.Status == "Verified");
+    await Throws("portal.duplicate", () => portalSvc.Register(scope, new PortalRegisterInput(patient.Id, Guid.NewGuid(), "sql.portal.dup", "Duplicate linkage attempt."), ct));
+    await ExecSql("INSERT INTO portal.ProxyGrants(Id,HospitalId,BranchId,PatientId,AccountId,Scope,ExpiresOn,Status,GrantedBy,GrantedAtUtc,RevokedBy,RevokedAtUtc,Version) VALUES(@id,@h,@b,@patient,@account,'Records','2027-12-31','Revoked','SQL Test Admin',SYSUTCDATETIME(),'SQL Test Admin',SYSUTCDATETIME(),2)", ("id", Guid.NewGuid()), ("h", hospitalId), ("b", branchId), ("patient", patient.Id), ("account", account.Id));
+    var grantId = await Query1("SELECT TOP(1) Id FROM portal.ProxyGrants WHERE AccountId=@account", ("account", account.Id));
+    var tampered = false; try { await ExecSql("UPDATE portal.ProxyGrants SET Status='Active' WHERE Id=@id", ("id", grantId!)); } catch { tampered = true; }
+    Assert(tampered);
+    var definition = await reportingSvc.Define(scope, new ReportDefinitionInput("SQL-R", "SQL census report", "Management", "SQL Test Admin", "census_summary", "uhid,patient", "from,to"), ct);
+    var execution = await reportingSvc.Execute(scope, new ReportExecuteInput(definition.Id, "{}"), ct);
+    Assert(execution.Status == "Completed" && execution.Number.StartsWith("RPT-"));
+    var appendOnly = false; try { await ExecSql("DELETE FROM report.Executions WHERE Id=@id", ("id", execution.Id)); } catch { appendOnly = true; }
     Assert(appendOnly);
 });
 

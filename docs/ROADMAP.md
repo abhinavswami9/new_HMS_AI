@@ -10,8 +10,7 @@ Each increment: contract/schema → domain/application tests → API authorizati
 | 2     | IPD, beds, nursing, pharmacy, LIS                                                           | Delivered initial vertical slice: ADT/bed board, nursing/eMAR, pharmacy stock/dispensing, LIS worklist; see PHASE2_STATUS.md                               |
 | 3     | RIS/PACS, OT, emergency, blood bank                                                         | Delivered initial vertical slice: RIS workflow (no live PACS — viewer fails closed), emergency board, theatre scheduling, blood bank; see PHASE3_STATUS.md |
 | 4     | Insurance/TPA, doctor incentives, telemedicine, inventory/purchase, CSSD                    | Delivered initial vertical slice: claims pipeline, closed-period incentive batches, consent-gated telemedicine (no video provider), indent-to-consumption inventory, CSSD cycles; see PHASE4_STATUS.md |
-| 4     | Insurance/TPA, incentives, telemedicine, inventory/procurement                              | Configurable workflow design; no live payment/video service                                                                                                |
-| 5     | Quality, reporting, portal, mobile, AI-ready                                                | Governance/read-model design; no autonomous clinical decisions                                                                                             |
+| 5     | Quality, reporting, patient portal, mobile, AI-ready                                        | Delivered initial vertical slice: NABH/NABL-oriented quality/CAPA evidence, patient portal (own device tokens, no IdP/gateway), governed query-registry reporting; see PHASE5_STATUS.md |
 
 ## Phase 1 work packages
 

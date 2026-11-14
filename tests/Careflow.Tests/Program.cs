@@ -43,7 +43,7 @@ await Test("invoice prices are resolved server-side", async () => { invoice = aw
 await Test("overpayment is rejected without partial audit writes", async () => { var count = data.Audit.Count; await Throws("payment.overpayment", () => service.Pay(scope, invoice!.Id, new PaymentInput(invoice.Total + 1, "Cash", "TEST-1", invoice.Version), ct)); Assert(data.Audit.Count == count); });
 await Test("payment reference retries are idempotent", async () => { var payment = new PaymentInput(invoice!.Total, "Cash", "TEST-UNIQUE", invoice.Version); invoice = await service.Pay(scope, invoice.Id, payment, ct); Assert(invoice.Status == "Paid"); var count = data.Audit.Count; var retry = await service.Pay(scope, invoice.Id, payment, ct); Assert(retry.Payments.Count == 1 && data.Audit.Count == count); await Throws("payment.idempotency", () => service.Pay(scope, invoice.Id, payment with { Amount = 1 }, ct)); });
 await Test("module disabling blocks new work but retains records", async () => { await service.SetModule(scope, "billing", false, "Planned billing maintenance window.", ct); await Throws("module.disabled", () => service.CreateInvoice(scope, new InvoiceInput(registered!.Id, [new(data.Services[0].Id, 1)]), ct)); Assert(data.Invoices.Any(i => i.Id == invoice!.Id)); await service.SetModule(scope, "billing", true, "Maintenance completed and verified.", ct); });
-await Test("later-phase modules cannot be enabled by configuration", async () => { await Throws("module.unavailable", () => service.SetModule(scope, "quality", true, "Attempted early activation.", ct)); });
+await Test("phase 5 modules pass the implementation gate; unknown modules 404", async () => { var m = await service.SetModule(scope, "quality", true, "Phase 5 implementation gates are complete.", ct); Assert(m.Enabled); await Throws("not_found", () => service.SetModule(scope, "imaginary", true, "Unknown module attempted.", ct)); });
 await Test("failed login is retained and successful sessions are revocable", async () => { await Throws("auth.failed", () => service.Login(new LoginInput("admin", "incorrect"), SeedIds.Hospital, SeedIds.Branch, ct, "203.0.113.10")); Assert(data.Logins.Any(l => !l.Success && l.SourceIp == "203.0.113.10")); var auth = await service.Login(new LoginInput("admin", "Preview!2026"), SeedIds.Hospital, SeedIds.Branch, ct, "203.0.113.10"); Assert(await service.Authenticate(auth.Token, SeedIds.Hospital, SeedIds.Branch, ct) is not null); await service.Logout(auth.Token, SeedIds.Hospital, SeedIds.Branch, ct); Assert(await service.Authenticate(auth.Token, SeedIds.Hospital, SeedIds.Branch, ct) is null); Assert(data.Audit.Any(a => a.Action == "auth.logout")); });
 await Test("sessions are bound to the configured hospital branch", async () => { var auth = await service.Login(new LoginInput("admin", "Preview!2026"), SeedIds.Hospital, SeedIds.Branch, ct); Assert(await service.Authenticate(auth.Token, SeedIds.Hospital, Guid.NewGuid(), ct) is null); await Throws("auth.failed", () => service.Login(new LoginInput("admin", "Preview!2026"), SeedIds.Hospital, Guid.NewGuid(), ct)); await service.Logout(auth.Token, SeedIds.Hospital, SeedIds.Branch, ct); });
 await Test("patient chart access is audited and clinical visibility is scoped", async () => { var chart = await service.GetChart(clinical, registered!.Id, ct); Assert(chart.Encounters.All(e => e.DoctorId == doctor.Id)); Assert(chart.Invoices.Count == 0); Assert(data.Audit.Any(a => a.Action == "patient.chart.viewed" && a.ActorId == doctor.Id)); });
@@ -375,6 +375,126 @@ await Test("CSSD issues track returns and recalls stay unique per cycle", async 
     await Throws("cssd.recall", () => cssdSvc.Recall(cssdScope, new RecallInput(Phase4Cycle!.Id, "Duplicate recall attempt for the same cycle."), ct));
     recall = await cssdSvc.CloseRecall(cssdScope, recall.Id, new VersionInput(0, "All affected sets traced and quarantined."), ct);
     Assert(recall.Status == "Closed");
+});
+
+// Phase 5: quality/accreditation, patient portal, management reporting
+var qualitySvc = new QualityService(uow, clock); var portalSvc = new PortalService(uow, clock); var reportingSvc = new ReportingService(uow, clock);
+var qualityUser = data.Users.First(u => u.UserName == "quality"); var qualityScope = Scope.For(new Principal(qualityUser.Id, qualityUser.DisplayName, qualityUser.Role, qualityUser.HospitalId, qualityUser.BranchId), clock.UtcNow);
+var patientUser = data.Users.First(u => u.UserName == "patient"); var patientScope = Scope.For(new Principal(patientUser.Id, patientUser.DisplayName, patientUser.Role, patientUser.HospitalId, patientUser.BranchId), clock.UtcNow);
+Capa? Phase5Capa = null;
+await Test("incident reporting drives triage and CAPA with effectiveness before closure", async () =>
+{
+    var incident = await qualitySvc.ReportIncident(qualityScope, new IncidentInput("Medication", "Moderate", "Look-alike ampoule selected from the emergency trolley and caught before administration.", "Emergency bay", data.Patients[1].Id), ct);
+    Assert(incident.Number.StartsWith("QIR-") && incident.Status == "Reported");
+    incident = await qualitySvc.TriageIncident(qualityScope, incident.Id, new IncidentTriageInput("Assign to medication safety owner for analysis.", "Vinay Raheja", incident.Version), ct);
+    Assert(incident.Status == "UnderInvestigation" && incident.TriagedAt is not null);
+    Phase5Capa = await qualitySvc.OpenCapa(qualityScope, new CapaInput(incident.Id, null, null, null, "Relabelled the trolley drawer immediately.", "Tall-man lettering and a second check for high-alert vials.", "Quarterly storage standard spot checks.", "Vinay Raheja", clock.UtcNow.AddDays(20)), ct);
+    Assert(Phase5Capa.Number.StartsWith("CAPA-"));
+    await Throws("quality.state", () => qualitySvc.CloseCapa(qualityScope, Phase5Capa!.Id, new CapaCloseInput("Attempting closure without effectiveness evidence.", Phase5Capa.Version), ct));
+    await Throws("quality.completeness", () => qualitySvc.CloseIncident(qualityScope, incident.Id, new IncidentCloseInput("Attempt to close while the CAPA is still open.", "Root cause pending.", incident.Version), ct));
+    Phase5Capa = await qualitySvc.VerifyCapa(qualityScope, Phase5Capa.Id, new CapaVerifyInput("Three spot checks passed across night shifts with photo evidence.", Phase5Capa.Version), ct);
+    Assert(Phase5Capa.EffectivenessVerified && Phase5Capa.Status == "Verified");
+    var closed = await qualitySvc.CloseCapa(qualityScope, Phase5Capa.Id, new CapaCloseInput("Effectiveness verified across three audits.", Phase5Capa.Version), ct);
+    Assert(closed.Status == "Closed");
+    incident = await qualitySvc.CloseIncident(qualityScope, incident.Id, new IncidentCloseInput("Process change verified at the bedside.", "Label similarity in the emergency trolley.", incident.Version), ct);
+    Assert(incident.Status == "Closed");
+});
+await Test("infection surveillance and risk register validate inputs", async () =>
+{
+    var infection = await qualitySvc.ReportInfection(qualityScope, new InfectionInput(data.Patients[2].Id, null, "Healthcare-associated", "Surgical site", "Surveillance screening", DateOnly.FromDateTime(clock.UtcNow.UtcDateTime).AddDays(-3), "Moderate"), ct);
+    infection = await qualitySvc.InvestigateInfection(qualityScope, infection.Id, new InfectionInvestigateInput("Swab culture positive for S. aureus; outbreak check clear.", "Recovered after targeted therapy.", "Confirmed", infection.Version), ct);
+    Assert(infection.Status == "Confirmed");
+    await Throws("quality.fields", () => qualitySvc.AssessRisk(qualityScope, new RiskInput("Clinical", "Test risk with invalid scoring.", 9, 3, "Mitigation plan placeholder text.", "Owner"), ct));
+    var risk = await qualitySvc.AssessRisk(qualityScope, new RiskInput("Infection control", "Hand-hygiene drift during peak hours.", 3, 4, "Increase observation rounds during peak hours.", "Sneha Iyer"), ct);
+    Assert(risk.Score == 12 && risk.Number.StartsWith("RSK-"));
+    risk = await qualitySvc.UpdateRisk(qualityScope, risk.Id, new RiskUpdateInput("Observation rounds doubled; compliance improving.", "Sneha Iyer", "Mitigating", risk.Version), ct);
+    Assert(risk.Status == "Mitigating");
+});
+await Test("indicator definitions are unique and results are computed, not trusted", async () =>
+{
+    var indicator = await qualitySvc.DefineIndicator(qualityScope, new QualityIndicatorInput("TEST-01", "Test compliance", "Share of completed audits.", "Audits completed", "Audits planned", "Monthly", "Vinay Raheja"), ct);
+    Assert(indicator.Code == "TEST-01");
+    await Throws("quality.duplicate", () => qualitySvc.DefineIndicator(qualityScope, new QualityIndicatorInput("TEST-01", "Duplicate", "Duplicate code.", "A", "B", "Monthly", "Owner"), ct));
+    await Throws("quality.indicator", () => qualitySvc.RecordIndicatorResult(qualityScope, indicator.Id, new QualityIndicatorResultInput("2026-10", "2026-10", 12, 10, "Bad data", ""), ct));
+    var result = await qualitySvc.RecordIndicatorResult(qualityScope, indicator.Id, new QualityIndicatorResultInput("2026-10", "2026-10", 9, 10, "Audit register count", "Provisional."), ct);
+    Assert(result.Value == 90);
+});
+await Test("controlled documents enforce review separation and acknowledgment uniqueness", async () =>
+{
+    var doc = await qualitySvc.CreateDocument(qualityScope, new DocumentInput("Fire Safety SOP", "SOP", "Vinay Raheja", "Initial issue for ward rollout.", "In case of fire: raise the alarm, evacuate per the ward map, assemble at the designated point."), ct);
+    Assert(doc.Number.StartsWith("DOC-") && doc.Status == "Draft");
+    doc = await qualitySvc.SubmitDocument(qualityScope, doc.Id, new DocumentTransitionInput("Ready for quality review.", doc.Version), ct);
+    Assert(doc.Status == "InReview");
+    await Throws("quality.separation", () => qualitySvc.ApproveDocument(qualityScope, doc.Id, new DocumentTransitionInput("Self approval attempt.", doc.Version), ct));
+    var approverScope = Scope.For(admin, clock.UtcNow);
+    doc = await qualitySvc.ApproveDocument(approverScope, doc.Id, new DocumentTransitionInput("Reviewed against the ward evacuation plan.", doc.Version), ct);
+    Assert(doc.Status == "Approved");
+    doc = await qualitySvc.PublishDocument(approverScope, doc.Id, new DocumentTransitionInput("Published for staff acknowledgment.", doc.Version), ct);
+    Assert(doc.Status == "Published");
+    var ack = await qualitySvc.AcknowledgeDocument(nurseScope, doc.Id, new DocumentAcknowledgeInput("Read and understood."), ct);
+    Assert(ack.VersionNumber == 1);
+    await Throws("quality.duplicate", () => qualitySvc.AcknowledgeDocument(nurseScope, doc.Id, new DocumentAcknowledgeInput("Duplicate acknowledgment."), ct));
+    doc = await qualitySvc.RetireDocument(approverScope, doc.Id, new DocumentTransitionInput("Superseded by the 2027 edition.", doc.Version), ct);
+    Assert(doc.Status == "Retired");
+});
+await Test("portal accounts resolve by login and enforce record ownership", async () =>
+{
+    await Throws("forbidden", () => portalSvc.GetProfile(scope, ct));
+    var profile = await portalSvc.GetProfile(patientScope, ct);
+    Assert(profile.Account.Status == "Verified" && profile.Patient.Id == data.Patients[0].Id);
+    var session = await portalSvc.Login(patientScope, new PortalLoginInput("iPhone · Safari"), ct);
+    Assert(session.TokenHash.Length > 10 && data.DeviceSessions.Count == 1);
+    await Throws("portal.ownership", () => portalSvc.GetBills(patientScope, data.Patients[2].Id, ct));
+});
+await Test("portal proxy grants are scoped, expiring and revocable", async () =>
+{
+    var patient2User = data.Users.First(u => u.UserName == "patient2");
+    var proxyAccount = data.PortalAccounts.First(a => a.UserName == "ramesh.gupta");
+    Assert(proxyAccount.Status == "Verified");
+    var grant = await portalSvc.GrantProxy(patientScope, data.Patients[0].Id, new ProxyGrantInput(proxyAccount.Id, "Billing", DateOnly.FromDateTime(clock.UtcNow.UtcDateTime).AddDays(30)), ct);
+    Assert(grant.Status == "Active");
+    var proxyScope = Scope.For(new Principal(patient2User.Id, patient2User.DisplayName, patient2User.Role, patient2User.HospitalId, patient2User.BranchId), clock.UtcNow);
+    await Throws("portal.ownership", () => portalSvc.GetPrescriptions(proxyScope, data.Patients[0].Id, ct));
+    var bills = await portalSvc.GetBills(proxyScope, data.Patients[0].Id, ct);
+    Assert(bills is not null);
+    grant = await portalSvc.RevokeProxy(patientScope, grant.Id, new ProxyRevokeInput("Access no longer required after discharge.", grant.Version), ct);
+    Assert(grant.Status == "Revoked");
+    await Throws("portal.ownership", () => portalSvc.GetBills(proxyScope, data.Patients[0].Id, ct));
+});
+await Test("portal reports download authorized results only and payments stay owned", async () =>
+{
+    var reports = await portalSvc.GetReports(patientScope, null, ct);
+    Assert(reports is not null);
+    var doc = await portalSvc.Download(patientScope, Guid.Parse("f7000000-0000-0000-0000-000000000012"), "lab", null, ct);
+    Assert(doc.Watermark.Contains("Careflow portal") && doc.Content.Contains("Hemoglobin"));
+    await Throws("not_found", () => portalSvc.Download(patientScope, Guid.NewGuid(), "lab", null, ct));
+    var invoice = await service.CreateInvoice(scope, new InvoiceInput(data.Patients[0].Id, [new(data.Services[0].Id, 1)]), ct);
+    invoice = await service.IssueInvoice(scope, invoice.Id, invoice.Version, ct);
+    invoice = await portalSvc.Pay(patientScope, new PortalPaymentInput(invoice.Id, 10, "Card", "PORTAL-PAY-1"), ct);
+    Assert(invoice.Payments.Count == 1);
+    await Throws("billing.payment", () => portalSvc.Pay(patientScope, new PortalPaymentInput(invoice.Id, invoice.Total + 500, "Card", "PORTAL-PAY-2"), ct));
+    await Throws("portal.ownership", () => portalSvc.Pay(patientScope, new PortalPaymentInput(data.Invoices.First(i => i.PatientId != data.Patients[0].Id).Id, 1, "Cash", "PORTAL-PAY-3"), ct));
+});
+await Test("report definitions run governed queries with separation and parameter bounds", async () =>
+{
+    var definition = await reportingSvc.Define(scope, new ReportDefinitionInput("TEST-R", "Test census report", "Management", "Test Admin", "census_summary", "uhid,patient,encounters", "from,to"), ct);
+    Assert(definition.Status == "Draft");
+    await Throws("report.query", () => reportingSvc.Define(scope, new ReportDefinitionInput("TEST-X", "Injection attempt", "Management", "Anjali Sharma", "DROP TABLE patients", "x", ""), ct));
+    await Throws("report.separation", () => reportingSvc.ApproveDefinition(scope, definition.Id, new VersionInput(definition.Version, "Self approval attempt."), ct));
+    definition = await reportingSvc.ApproveDefinition(qualityScope, definition.Id, new VersionInput(definition.Version, "Reviewed against the metric dictionary."), ct);
+    Assert(definition.Status == "Active");
+    await Throws("report.parameters", () => reportingSvc.Execute(scope, new ReportExecuteInput(definition.Id, "{not json"), ct));
+    await Throws("report.parameters", () => reportingSvc.Execute(scope, new ReportExecuteInput(definition.Id, "{\"from\":\"2026-12-31\",\"to\":\"2026-01-01\"}"), ct));
+    var execution = await reportingSvc.Execute(scope, new ReportExecuteInput(definition.Id, "{\"from\":\"2026-01-01\",\"to\":\"2026-12-31\"}"), ct);
+    Assert(execution.Status == "Completed" && execution.Rows.Length > 2 && execution.Number.StartsWith("RPT-"));
+    var export = await reportingSvc.Export(scope, new ReportExportInput(execution.Id, "PDF"), ct);
+    Assert(export.Watermark.Contains("Careflow HIS") && export.FileRef.EndsWith(".pdf"));
+    var subscription = await reportingSvc.Subscribe(scope, new SubscriptionInput(definition.Id, "Weekly", "management@example.com"), ct);
+    Assert(subscription.Active);
+    var dash = await reportingSvc.Dashboard(scope, "management", ct);
+    Assert(dash.Cards.Count >= 5 && dash.Provisional);
+    var clinicalDash = await reportingSvc.Dashboard(scope, "clinical", ct);
+    Assert(clinicalDash.Cards.Any(c => c.Label == "Open incidents"));
 });
 
 Console.WriteLine($"\n{passed} application/domain tests passed. SQL Server integration tests are a separate release gate.");

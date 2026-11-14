@@ -441,8 +441,73 @@ export type CareWorkspace = {
   cssdSets: InstrumentSet[];
   cssdCycles: SterilizerCycle[];
   cssdIssues: CssdIssue[];
+  infections: Infection[];
+  incidents: QualityIncident[];
+  risks: RiskAssessment[];
+  capas: Capa[];
+  audits: ClinicalAudit[];
+  qualityIndicators: QualityIndicator[];
+  indicatorResults: IndicatorResult[];
+  qualityDocuments: QualityDocument[];
+  portalAccounts: PortalAccount[];
+  proxyGrants: ProxyGrant[];
+  reportDefinitions: ReportDefinition[];
+  reportExecutions: ReportExecution[];
   nurses: StaffMember[];
   truncated: boolean;
+};
+
+export type Infection = {
+  id: string; number: string; patientId: string; encounterId: string | null; category: string; site: string;
+  detectedMethod: string; detectedOn: string; severity: string; status: string; reportedBy: string; reportedAt: string;
+  investigation: string; outcome: string; version: number;
+};
+export type QualityIncident = {
+  id: string; number: string; category: string; severity: string; description: string; location: string;
+  patientId: string | null; reportedBy: string; reportedAt: string; status: string; triageNote: string;
+  assignedTo: string; triagedAt: string | null; investigation: string; rootCause: string; version: number;
+};
+export type RiskAssessment = {
+  id: string; number: string; domain: string; description: string; probability: number; impact: number;
+  score: number; mitigation: string; owner: string; status: string; assessedAt: string; version: number;
+};
+export type Capa = {
+  id: string; number: string; incidentId: string | null; infectionId: string | null; auditId: string | null;
+  riskId: string | null; correction: string; correctiveAction: string; preventiveAction: string; owner: string;
+  dueDate: string; status: string; effectivenessEvidence: string; effectivenessVerified: boolean;
+  verifiedBy: string; verifiedAt: string | null; createdAt: string; createdBy: string; version: number;
+};
+export type ClinicalAudit = {
+  id: string; number: string; domain: string; scope: string; plannedFor: string; lead: string; status: string;
+  findings: string; scorePercent: number; report: string; createdAt: string; createdBy: string; version: number;
+};
+export type QualityIndicator = {
+  id: string; code: string; name: string; definition: string; numerator: string; denominator: string;
+  period: string; owner: string; status: string; version: number;
+};
+export type IndicatorResult = {
+  id: string; indicatorId: string; periodStart: string; periodEnd: string; numerator: number;
+  denominator: number; value: number; basis: string; note: string; recordedBy: string; recordedAt: string;
+};
+export type QualityDocument = {
+  id: string; number: string; title: string; category: string; status: string; currentVersion: number;
+  owner: string; createdAt: string; version: number;
+};
+export type PortalAccount = {
+  id: string; userId: string; patientId: string; userName: string; status: string; proofingEvidence: string;
+  verifiedBy: string; verifiedAt: string | null; createdAt: string; version: number;
+};
+export type ProxyGrant = {
+  id: string; patientId: string; accountId: string; scope: string; expiresOn: string; status: string;
+  grantedBy: string; grantedAt: string; revokedBy: string; revokedAt: string | null; version: number;
+};
+export type ReportDefinition = {
+  id: string; code: string; name: string; category: string; status: string; currentVersion: number;
+  owner: string; createdAt: string; version: number;
+};
+export type ReportExecution = {
+  id: string; number: string; definitionId: string; definitionVersion: number; parameters: string; rows: string;
+  rowCount: number; status: string; executedBy: string; executedAt: string; error: string; version: number;
 };
 
 export type Payer = { id: string; code: string; name: string; contact: string; active: boolean };

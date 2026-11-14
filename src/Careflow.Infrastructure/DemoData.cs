@@ -86,6 +86,26 @@ public sealed class DemoData
     public List<CycleLoad> CycleLoads { get; set; } = [];
     public List<CycleIndicator> CycleIndicators { get; set; } = [];
     public List<CssdIssue> CssdIssues { get; set; } = [];
+    public List<Infection> Infections { get; set; } = [];
+    public List<Incident> Incidents { get; set; } = [];
+    public List<RiskAssessment> Risks { get; set; } = [];
+    public List<Capa> Capas { get; set; } = [];
+    public List<ClinicalAudit> Audits { get; set; } = [];
+    public List<QualityIndicator> QualityIndicators { get; set; } = [];
+    public List<IndicatorResult> IndicatorResults { get; set; } = [];
+    public List<QualityDocument> QualityDocuments { get; set; } = [];
+    public List<DocumentVersion> DocumentVersions { get; set; } = [];
+    public List<SopAcknowledgment> SopAcknowledgments { get; set; } = [];
+    public List<PortalAccount> PortalAccounts { get; set; } = [];
+    public List<PatientLink> PatientLinks { get; set; } = [];
+    public List<ProxyGrant> ProxyGrants { get; set; } = [];
+    public List<DeviceSession> DeviceSessions { get; set; } = [];
+    public List<PortalPreference> PortalPreferences { get; set; } = [];
+    public List<ReportDefinition> ReportDefinitions { get; set; } = [];
+    public List<ReportVersion> ReportVersions { get; set; } = [];
+    public List<ReportExecution> ReportExecutions { get; set; } = [];
+    public List<ReportExport> ReportExports { get; set; } = [];
+    public List<ReportSubscription> ReportSubscriptions { get; set; } = [];
     public List<CssdRecall> CssdRecalls { get; set; } = [];
     public Dictionary<string, string> Policies { get; set; } = [];
     public string HospitalName { get; set; } = "Nova Care Hospital";
@@ -94,7 +114,7 @@ public sealed class DemoData
         [.. Encounters.OrderByDescending(x => x.UpdatedAt).Take(limit)], [.. Invoices.OrderByDescending(x => x.CreatedAt).Take(limit)], Doctors, Services, Medicines, Modules, [.. Audit.OrderByDescending(x => x.OccurredAt).Take(limit)], HospitalName, BranchName);
     public static DemoData Create(IClock clock, IPasswordService passwords)
     {
-        var now = clock.UtcNow; var today = now.UtcDateTime.Date; var names = new[] { ("Aarav", "Sharma", 28, "Male"), ("Priya", "Nair", 34, "Female"), ("Rohan", "Mehta", 45, "Male"), ("Ananya", "Gupta", 29, "Female"), ("Vikram", "Singh", 52, "Male"), ("Meera", "Iyer", 39, "Female"), ("Arjun", "Patel", 31, "Male"), ("Kavita", "Reddy", 42, "Female"), ("Suresh", "Kumar", 61, "Male"), ("Neha", "Verma", 26, "Female"), ("Aditya", "Rao", 35, "Male"), ("Ishita", "Shah", 32, "Female") };
+        var now = clock.UtcNow; var today = now.UtcDateTime.Date; var names = new[] { ("Dolly", "Chauhan", 28, "Female"), ("Ramesh", "Gupta", 34, "Male"), ("Rohan", "Mehta", 45, "Male"), ("Ananya", "Gupta", 29, "Female"), ("Vikram", "Singh", 52, "Male"), ("Meera", "Iyer", 39, "Female"), ("Arjun", "Patel", 31, "Male"), ("Kavita", "Reddy", 42, "Female"), ("Suresh", "Kumar", 61, "Male"), ("Neha", "Verma", 26, "Female"), ("Aditya", "Rao", 35, "Male"), ("Ishita", "Shah", 32, "Female") };
         var d = new DemoData();
         d.Patients = names.Select((n, i) => new Patient(Guid.Parse($"50000000-0000-0000-0000-{i + 1:D12}"), $"NCH-{now.Year}-{1241 + i:D6}", n.Item1, n.Item2,
             new DateOnly(now.Year - n.Item3, i % 12 + 1, Math.Min(13 + i, 28)), n.Item4, $"+91 98{76543210 + i}", $"{n.Item1.ToLower()}@example.com",
@@ -123,8 +143,8 @@ public sealed class DemoData
             var payments = i is 0 or 3 or 5 ? new[] { new Payment(Guid.Parse($"a0000000-0000-0000-0000-{i + 1:D12}"), lines.Sum(l => l.Quantity * l.UnitPrice), i == 0 ? "UPI" : "Card", $"SYNTH-PAY-{i + 1:D5}", now.AddDays(-3).AddHours(-i), SeedIds.Admin) } : Array.Empty<Payment>();
             return new Invoice(Guid.Parse($"b0000000-0000-0000-0000-{i + 1:D12}"), $"INV-{now.Year}-{i + 1:D4}", d.Patients[i].Id, null, i == 6 ? "Draft" : payments.Length > 0 ? "Paid" : "Issued", lines, 0, 0, payments, now.AddHours(-i - 1), now.AddHours(-i - 1));
         }).ToList();
-        d.Modules = [new("patients", "Patient registration & UHID", true, 1, "A unique patient identity, demographics, duplicate review and a longitudinal chart."), new("appointments", "Appointments & queues", true, 1, "Practitioner scheduling, booking, check-in and live patient-flow management."), new("consultations", "OPD & doctor EMR", true, 1, "Clinical notes, vitals, allergies, treatment plans and signed medical records."), new("billing", "Billing & payments", true, 1, "Service-based invoices, controlled issue and traceable payment collection."), new("ipd", "Inpatient management", true, 2, "Admission, discharge, transfer, care teams and discharge summaries."), new("nursing", "Nursing & bed management", true, 2, "Visual bed board, nursing assessments, eMAR and shift handovers."), new("pharmacy", "Pharmacy management", true, 2, "Prescription dispensing, batch traceability, stock and expiry control."), new("laboratory", "Laboratory · LIS", true, 2, "Specimen tracking, result validation, authorization and NABL-oriented quality."), new("radiology", "Radiology · RIS", true, 3, "Modality scheduling, worklists, structured reports and approval."), new("pacs", "PACS & DICOM", false, 3, "Standards-based imaging archive integration and secure viewer access."), new("emergency", "Emergency & casualty", true, 3, "Rapid registration, triage, observation and emergency disposition."), new("ot", "Operation theatre", true, 3, "Surgical scheduling, safety checklists, implants and recovery."), new("blood", "Blood bank", true, 3, "Donor-to-recipient traceability, testing, crossmatch and inventory."), new("insurance", "Insurance & TPA", true, 4, "Coverage, pre-authorization, claims and settlement reconciliation."), new("incentives", "Doctor incentives", true, 4, "Configurable incentive rules, calculation, approval and payment reporting."), new("telemedicine", "Telemedicine", true, 4, "Consent-aware video consultations, waiting rooms and digital care records."), new("inventory", "Inventory & procurement", true, 4, "Central and department stores, purchasing, GRN and asset management."), new("cssd", "CSSD", true, 4, "Instrument tracking, sterilization cycles, release and recall traceability."), new("quality", "Quality & infection control", false, 5, "Configurable NABH/NABL-oriented audits, incidents, CAPA and indicators."), new("portal", "Patient portal", false, 5, "Verified access to appointments, records, reports, bills and consent."), new("reports", "Advanced reporting", false, 5, "Governed dashboards, a configurable report builder and audited exports.")];
-        d.Users = [new(SeedIds.Admin, "admin", "Anjali Sharma", passwords.Hash("Preview!2026"), "Hospital Admin", SeedIds.Hospital, SeedIds.Branch, true), new(SeedIds.Doctor, "doctor", d.Doctors[0].Name, passwords.Hash("Preview!2026"), "Doctor", SeedIds.Hospital, SeedIds.Branch, true), .. new[] { ("reception", "Riya Kapoor", "Receptionist"), ("billing", "Amit Joshi", "Billing Staff"), ("nurse", "Nisha Thomas", "Nurse"), ("pharmacist", "Kiran Rao", "Pharmacist"), ("labtech", "Sana Iqbal", "Lab Technician"), ("pathologist", "Dr. Vivek Malhotra", "Pathologist"), ("labtech2", "Rohit Sen", "Lab Technician"), ("nurse2", "Amrita Nair", "Nurse"), ("radiologist", "Dr. Kabir Menon", "Radiologist"), ("radiologist2", "Dr. Arvind Nair", "Radiologist"), ("bloodtech", "Farah Khan", "Blood Bank Technician"), ("insurance", "Ishaan Malhotra", "Insurance Coordinator"), ("account", "Tara Sethi", "Accountant"), ("store", "Manoj Pillai", "Store Manager"), ("cssdtech", "Ritu Bansal", "CSSD Technician") }.Select((x, i) => new UserAccount(Guid.Parse($"30000000-0000-0000-0000-{i + 2:D12}"), x.Item1, x.Item2, passwords.Hash("Preview!2026"), x.Item3, SeedIds.Hospital, SeedIds.Branch, true))];
+        d.Modules = [new("patients", "Patient registration & UHID", true, 1, "A unique patient identity, demographics, duplicate review and a longitudinal chart."), new("appointments", "Appointments & queues", true, 1, "Practitioner scheduling, booking, check-in and live patient-flow management."), new("consultations", "OPD & doctor EMR", true, 1, "Clinical notes, vitals, allergies, treatment plans and signed medical records."), new("billing", "Billing & payments", true, 1, "Service-based invoices, controlled issue and traceable payment collection."), new("ipd", "Inpatient management", true, 2, "Admission, discharge, transfer, care teams and discharge summaries."), new("nursing", "Nursing & bed management", true, 2, "Visual bed board, nursing assessments, eMAR and shift handovers."), new("pharmacy", "Pharmacy management", true, 2, "Prescription dispensing, batch traceability, stock and expiry control."), new("laboratory", "Laboratory · LIS", true, 2, "Specimen tracking, result validation, authorization and NABL-oriented quality."), new("radiology", "Radiology · RIS", true, 3, "Modality scheduling, worklists, structured reports and approval."), new("pacs", "PACS & DICOM", false, 3, "Standards-based imaging archive integration and secure viewer access."), new("emergency", "Emergency & casualty", true, 3, "Rapid registration, triage, observation and emergency disposition."), new("ot", "Operation theatre", true, 3, "Surgical scheduling, safety checklists, implants and recovery."), new("blood", "Blood bank", true, 3, "Donor-to-recipient traceability, testing, crossmatch and inventory."), new("insurance", "Insurance & TPA", true, 4, "Coverage, pre-authorization, claims and settlement reconciliation."), new("incentives", "Doctor incentives", true, 4, "Configurable incentive rules, calculation, approval and payment reporting."), new("telemedicine", "Telemedicine", true, 4, "Consent-aware video consultations, waiting rooms and digital care records."), new("inventory", "Inventory & procurement", true, 4, "Central and department stores, purchasing, GRN and asset management."), new("cssd", "CSSD", true, 4, "Instrument tracking, sterilization cycles, release and recall traceability."), new("quality", "Quality & infection control", true, 5, "Configurable NABH/NABL-oriented audits, incidents, CAPA and indicators."), new("portal", "Patient portal", true, 5, "Verified access to appointments, records, reports, bills and consent."), new("reports", "Advanced reporting", true, 5, "Governed dashboards, a configurable report builder and audited exports.")];
+        d.Users = [new(SeedIds.Admin, "admin", "Anjali Sharma", passwords.Hash("Preview!2026"), "Hospital Admin", SeedIds.Hospital, SeedIds.Branch, true), new(SeedIds.Doctor, "doctor", d.Doctors[0].Name, passwords.Hash("Preview!2026"), "Doctor", SeedIds.Hospital, SeedIds.Branch, true), .. new[] { ("reception", "Riya Kapoor", "Receptionist"), ("billing", "Amit Joshi", "Billing Staff"), ("nurse", "Nisha Thomas", "Nurse"), ("pharmacist", "Kiran Rao", "Pharmacist"), ("labtech", "Sana Iqbal", "Lab Technician"), ("pathologist", "Dr. Vivek Malhotra", "Pathologist"), ("labtech2", "Rohit Sen", "Lab Technician"), ("nurse2", "Amrita Nair", "Nurse"), ("radiologist", "Dr. Kabir Menon", "Radiologist"), ("radiologist2", "Dr. Arvind Nair", "Radiologist"), ("bloodtech", "Farah Khan", "Blood Bank Technician"), ("insurance", "Ishaan Malhotra", "Insurance Coordinator"), ("account", "Tara Sethi", "Accountant"), ("store", "Manoj Pillai", "Store Manager"), ("cssdtech", "Ritu Bansal", "CSSD Technician"), ("quality", "Vinay Raheja", "Quality Manager"), ("icnurse", "Sneha Iyer", "Infection Control Nurse"), ("depthead", "Dr. Suresh Menon", "Department Head"), ("patient", "Dolly Chauhan", "Patient"), ("patient2", "Ramesh Gupta", "Patient") }.Select((x, i) => new UserAccount(Guid.Parse($"30000000-0000-0000-0000-{i + 2:D12}"), x.Item1, x.Item2, passwords.Hash("Preview!2026"), x.Item3, SeedIds.Hospital, SeedIds.Branch, true))];
         d.Sequences = new() { ["UHID:" + SeedIds.Hospital] = 1253, [$"INVOICE:{SeedIds.Branch}:{now.Year}"] = 7, [$"ADMISSION:{SeedIds.Branch}:{now.Year}"] = 2, [$"DISPENSE:{SeedIds.Branch}:{now.Year}"] = 0, [$"LAB:{SeedIds.Branch}:{now.Year}"] = 3, ["LAB_BARCODE:" + SeedIds.Branch] = 1, [$"LAB_ACCESSION:{SeedIds.Branch}:{now.Year}"] = 1, [$"RIS:{SeedIds.Branch}:{now.Year}"] = 3, ["RIS_ACCESSION:" + SeedIds.Branch] = 2, [$"OT:{SeedIds.Branch}:{now.Year}"] = 2, [$"ER:{SeedIds.Branch}:{now.Year}"] = 2, [$"CROSSMATCH:{SeedIds.Branch}:{now.Year}"] = 1, [$"BLOOD:{SeedIds.Branch}:{now.Year}"] = 0 };
         var nurseId = Guid.Parse("30000000-0000-0000-0000-000000000004"); var pharmacistId = Guid.Parse("30000000-0000-0000-0000-000000000005"); var labTechId = Guid.Parse("30000000-0000-0000-0000-000000000006"); var pathologistId = Guid.Parse("30000000-0000-0000-0000-000000000007");
         d.Beds = [.. Enumerable.Range(1, 6).Select(i => new Bed(Guid.Parse($"c0000000-0000-0000-0000-{i:D12}"), "General ward", $"G-{i:D2}", "General", i == 1 ? "Occupied" : i == 5 ? "Cleaning" : "Available", "")),
@@ -229,6 +249,70 @@ public sealed class DemoData
             new(Guid.NewGuid(), d.InstrumentSets[1].Id, "Tissue forceps", "INS-002-A", "Ok"),
             new(Guid.NewGuid(), d.InstrumentSets[1].Id, "Scissors", "INS-002-B", "Missing")
         ];
+        // ---- Phase 5: quality, portal, reporting ---------------------------
+        d.Infections =
+        [
+            new(Guid.Parse("f7000000-0000-0000-0000-000000000001"), "INF-SEED-0001", d.Patients[1].Id, null, "Healthcare-associated", "Surgical site", "Surveillance screening", DateOnly.FromDateTime(now.AddDays(-6).UtcDateTime), "Moderate", "Reported", "Sneha Iyer", now.AddDays(-5), "", "")
+        ];
+        d.Incidents =
+        [
+            new(Guid.Parse("f7000000-0000-0000-0000-000000000002"), "QIR-SEED-0001", "Medication", "Moderate", "Near miss: look-alike vial picked from the ward trolley and caught at the bedside check.", "Ward 2", d.Patients[2].Id, "Nisha Thomas", now.AddDays(-4), "Reported", "", "", null, "", ""),
+            new(Guid.Parse("f7000000-0000-0000-0000-000000000003"), "QIR-SEED-0002", "Fall", "Severe", "Patient slipped near the bathroom door despite the wet-floor sign being placed.", "Ward 1", d.Patients[0].Id, "Amrita Nair", now.AddDays(-3), "UnderInvestigation", "Assign to ward safety owner for root-cause analysis.", "Vinay Raheja", now.AddDays(-2), "", "")
+        ];
+        d.Risks =
+        [
+            new(Guid.Parse("f7000000-0000-0000-0000-000000000004"), "RSK-SEED-0001", "Infection control", "Hand-hygiene compliance drift during peak admission hours.", 3, 4, "Increase audit frequency and buddy reminders during peak hours.", "Sneha Iyer", "Mitigating", now.AddDays(-7))
+        ];
+        d.Capas =
+        [
+            new(Guid.Parse("f7000000-0000-0000-0000-000000000005"), "CAPA-SEED-0001", d.Incidents[0].Id, null, null, null, "Quarantined the look-alike vial lot and relabelled the trolley drawer.", "Tall-man lettering on labels and a second-person check for high-alert vials.", "Ward-level storage standard with quarterly spot checks.", "Vinay Raheja", now.AddDays(25), "Open", "", false, "", null, now.AddDays(-3), "Vinay Raheja")
+        ];
+        d.Audits =
+        [
+            new(Guid.Parse("f7000000-0000-0000-0000-000000000006"), "AUD-SEED-0001", "Infection control", "Hand-hygiene moments observed across wards 1-3 per the WHO five moments.", DateOnly.FromDateTime(now.AddDays(12).UtcDateTime), "Sneha Iyer", "Planned", "", 0, "", now.AddDays(-2), "Vinay Raheja")
+        ];
+        d.QualityIndicators =
+        [
+            new(Guid.Parse("f7000000-0000-0000-0000-000000000007"), "HAI-01", "Healthcare-associated infection rate", "Confirmed HAI cases per 100 registered patients in the reporting month.", "Confirmed HAI cases in the month", "Registered patients in the month", "Monthly", "Sneha Iyer", "Active"),
+            new(Guid.Parse("f7000000-0000-0000-0000-000000000008"), "IND-01", "Incident closure within 30 days", "Incidents closed within 30 days of reporting.", "Incidents closed within 30 days", "Incidents reported", "Monthly", "Vinay Raheja", "Active")
+        ];
+        d.IndicatorResults =
+        [
+            new(Guid.NewGuid(), d.QualityIndicators[0].Id, now.AddMonths(-1).ToString("yyyy-MM"), now.AddMonths(-1).ToString("yyyy-MM"), 2, 180, Math.Round(2m / 180m * 100, 2), "Surveillance log vs registration register", "Provisional month close.", "Sneha Iyer", now.AddDays(-2))
+        ];
+        d.QualityDocuments =
+        [
+            new(Guid.Parse("f7000000-0000-0000-0000-000000000009"), "DOC-SEED-0001", "Hand Hygiene SOP", "SOP", "Published", 1, "Sneha Iyer", now.AddDays(-10))
+        ];
+        d.DocumentVersions =
+        [
+            new(Guid.NewGuid(), d.QualityDocuments[0].Id, 1, "Initial issue for ward rollout.", "Wash hands before and after every patient contact using the WHO five moments. Alcohol rub for hands that are not visibly soiled; soap and water for spore-forming organisms.", "Sneha Iyer", now.AddDays(-10), "Vinay Raheja", now.AddDays(-9))
+        ];
+        d.SopAcknowledgments =
+        [
+            new(Guid.NewGuid(), d.QualityDocuments[0].Id, 1, "Nisha Thomas", "Read and understood; will apply on shift.", now.AddDays(-8))
+        ];
+        d.PortalAccounts =
+        [
+            new(Guid.Parse("f7000000-0000-0000-0000-000000000010"), Guid.Parse("30000000-0000-0000-0000-000000000020"), d.Patients[0].Id, "dolly.chauhan", "Verified", "Aadhaar + in-person desk verification at registration counter 2.", "Anjali Sharma", now.AddDays(-6), now.AddDays(-6)),
+            new(Guid.Parse("f7000000-0000-0000-0000-000000000011"), Guid.Parse("30000000-0000-0000-0000-000000000021"), d.Patients[1].Id, "ramesh.gupta", "Verified", "Aadhaar + in-person desk verification at registration counter 1.", "Anjali Sharma", now.AddDays(-5), now.AddDays(-5))
+        ];
+        d.PatientLinks =
+        [
+            new(Guid.NewGuid(), d.PortalAccounts[0].Id, d.Patients[0].Id, "Self", "Active", "Aadhaar + in-person desk verification.", now.AddDays(-6)),
+            new(Guid.NewGuid(), d.PortalAccounts[1].Id, d.Patients[1].Id, "Self", "Active", "Aadhaar + in-person desk verification.", now.AddDays(-5))
+        ];
+        d.PortalPreferences = [new(Guid.NewGuid(), d.PortalAccounts[0].Id, "SMS", "English", true), new(Guid.NewGuid(), d.PortalAccounts[1].Id, "SMS", "Hindi", true)];
+        d.ReportDefinitions =
+        [
+            new(Guid.Parse("f7000000-0000-0000-0000-000000000011"), "OPD-VOL", "OPD volume by practitioner", "Management", "Active", 1, "Anjali Sharma", now.AddDays(-5))
+        ];
+        d.ReportVersions =
+        [
+            new(Guid.NewGuid(), d.ReportDefinitions[0].Id, 1, "opd_volume_by_doctor", "doctorId,visits,cancelled", "from,to", "Anjali Sharma", now.AddDays(-5), "Vinay Raheja", now.AddDays(-4))
+        ];
+        d.LabOrders = [.. d.LabOrders, new(Guid.Parse("f7000000-0000-0000-0000-000000000012"), $"LAB-{now.Year}-SEED", d.Patients[0].Id, null, null, d.LabTests[0].Id, "Routine", "Authorized", $"BC-{now.Year}-SEED", $"ACC-{now.Year}-SEED", SeedIds.Doctor, now.AddDays(-4), now.AddDays(-4).AddHours(1), now.AddDays(-4).AddHours(2), now.AddDays(-4).AddHours(3), now.AddDays(-4).AddHours(4), now.AddDays(-4).AddHours(5), "")];
+        d.LabResults = [.. d.LabResults, new(Guid.Parse("f7000000-0000-0000-0000-000000000013"), Guid.Parse("f7000000-0000-0000-0000-000000000012"), 1, "13.2", 13.2m, "g/dL", 12, 16, "Normal", SeedIds.Doctor, now.AddDays(-4).AddHours(3), SeedIds.Doctor, now.AddDays(-4).AddHours(4), SeedIds.Doctor, now.AddDays(-4).AddHours(5), null)];
         return d;
     }
 }

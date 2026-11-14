@@ -48,11 +48,13 @@ _, workspace = call('GET', '/workspace')
 care = workspace['workspace']['care']
 check('workspace exposes phase 4 worklists', all(k in care for k in ['payers', 'plans', 'coverages', 'claims', 'incentiveBatches', 'teleSessions', 'inventoryItems', 'cssdSets']))
 mods = {m['key']: m for m in workspace['workspace']['modules']}
-check('phase 5 modules stay disabled in the demo catalog', all(mods[k]['enabled'] is False for k in ['quality', 'portal', 'reports']))
+check('phase 5 modules are enabled in the demo catalog', all(mods[k]['enabled'] is True for k in ['quality', 'portal', 'reports']))
 
 # ── module gate: phase 4 enables, phase 5 stays gated ────────────────────────
-status, body = call('PUT', '/modules/quality', {'enabled': True, 'reason': 'Attempting early activation of phase 5.'}, role='Hospital Admin')
-check('phase 5 module remains gated', status == 422 and body['code'] == 'module.unavailable')
+status, _ = call('PUT', '/modules/quality', {'enabled': True, 'reason': 'Quality module toggle after the phase 5 release.'}, role='Hospital Admin')
+check('phase 5 modules pass the implementation gate', status == 200)
+status, body = call('PUT', '/modules/pacs', {'enabled': True, 'reason': 'Attempting to enable an unbuilt integration.'}, role='Hospital Admin')
+check('unbuilt integration modules remain gated', status == 422 and body['code'] == 'module.unavailable')
 status, _ = call('PUT', '/modules/insurance', {'enabled': True, 'reason': 'Phase 4 implementation gates are complete.'}, role='Hospital Admin')
 check('phase 4 module passes the implementation gate', status == 200)
 

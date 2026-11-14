@@ -48,6 +48,17 @@ public sealed partial class MemoryUnitOfWork(DemoData initial) : IUnitOfWork, ID
             data.InventoryTransfers = candidate.InventoryTransfers; data.InventoryConsumptions = candidate.InventoryConsumptions;
             data.Assets = candidate.Assets;
             data.InstrumentSets = candidate.InstrumentSets; data.InstrumentItems = candidate.InstrumentItems;
+            data.Infections = candidate.Infections; data.Incidents = candidate.Incidents;
+            data.Risks = candidate.Risks; data.Capas = candidate.Capas;
+            data.Audits = candidate.Audits; data.QualityIndicators = candidate.QualityIndicators;
+            data.IndicatorResults = candidate.IndicatorResults; data.QualityDocuments = candidate.QualityDocuments;
+            data.DocumentVersions = candidate.DocumentVersions; data.SopAcknowledgments = candidate.SopAcknowledgments;
+            data.PortalAccounts = candidate.PortalAccounts; data.PatientLinks = candidate.PatientLinks;
+            data.ProxyGrants = candidate.ProxyGrants; data.DeviceSessions = candidate.DeviceSessions;
+            data.PortalPreferences = candidate.PortalPreferences;
+            data.ReportDefinitions = candidate.ReportDefinitions; data.ReportVersions = candidate.ReportVersions;
+            data.ReportExecutions = candidate.ReportExecutions; data.ReportExports = candidate.ReportExports;
+            data.ReportSubscriptions = candidate.ReportSubscriptions;
             data.SterilizerCycles = candidate.SterilizerCycles; data.CycleLoads = candidate.CycleLoads;
             data.CycleIndicators = candidate.CycleIndicators; data.CssdIssues = candidate.CssdIssues;
             data.CssdRecalls = candidate.CssdRecalls;

@@ -68,6 +68,9 @@ builder.Services.AddSingleton<IncentiveService>();
 builder.Services.AddSingleton<TelemedicineService>();
 builder.Services.AddSingleton<InventoryService>();
 builder.Services.AddSingleton<CssdService>();
+builder.Services.AddSingleton<QualityService>();
+builder.Services.AddSingleton<PortalService>();
+builder.Services.AddSingleton<ReportingService>();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -119,7 +122,7 @@ root.MapGet("/config", async (HttpContext context, HospitalService service, Canc
 {
     var token = context.Request.Cookies["careflow.session"];
     var principal = token is null ? null : await service.Authenticate(token, HospitalId(), BranchId(), ct);
-    return Results.Ok(new { demo, product = "Careflow HIS", phase = 4, principal });
+    return Results.Ok(new { demo, product = "Careflow HIS", phase = 5, principal });
 });
 Guid HospitalId() => Guid.TryParse(builder.Configuration["Careflow:HospitalId"], out var id) ? id : SeedIds.Hospital;
 Guid BranchId() => Guid.TryParse(builder.Configuration["Careflow:BranchId"], out var id) ? id : SeedIds.Branch;
@@ -190,6 +193,7 @@ root.MapPut("/modules/{key}", async (string key, ModuleInput input, HttpContext 
 CareEndpoints.Map(root);
 Phase3Endpoints.Map(root);
 Phase4Endpoints.Map(root);
+Phase5Endpoints.Map(root);
 root.MapGet("/admin/roles", (HttpContext context) => { Scope(context).Require(Permissions.Admin); return Results.Ok(Permissions.Roles.Select(r => new { role = r.Key, permissions = r.Value })); });
 if (webRoot is not null)
 {

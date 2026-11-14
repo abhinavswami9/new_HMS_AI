@@ -2,7 +2,7 @@
 
 A modular hospital information system foundation: **ASP.NET Core / .NET 10, SQL Server, React + TypeScript**, with a responsive clinical workspace and an explicitly synthetic development preview.
 
-> **Delivery status:** architecture + Phase 1 and Phase 2 vertical slices. This is not a certified, production-ready hospital platform. The live preview uses synthetic records and a development-only in-memory adapter behind the real .NET API. The full product runs as one ASP.NET Core process against SQL Server: the migrations and Phase 1/Phase 2 data paths are exercised against a real SQL Server container in CI (`sql-integration` job) and by `tests/Careflow.SqlTests`. Do not enter real patient information into the preview.
+> **Delivery status:** architecture + Phase 1–5 vertical slices (the five-phase plan in the roadmap is now fully built to its stated boundaries). This is not a certified, production-ready hospital platform. The live preview uses synthetic records and a development-only in-memory adapter behind the real .NET API. The full product runs as one ASP.NET Core process against SQL Server: the migrations and Phase 1/Phase 2 data paths are exercised against a real SQL Server container in CI (`sql-integration` job) and by `tests/Careflow.SqlTests`. Do not enter real patient information into the preview.
 
 ## Start here
 
@@ -16,6 +16,7 @@ A modular hospital information system foundation: **ASP.NET Core / .NET 10, SQL 
 | [Phase 2 boundaries](docs/PHASE2_STATUS.md)            | IPD/ADT, beds, nursing/eMAR, pharmacy and LIS delivery boundary                                           |
 | [Phase 3 boundaries](docs/PHASE3_STATUS.md)            | RIS (no live PACS), emergency, operation theatre and blood bank delivery boundary                          |
 | [Phase 4 boundaries](docs/PHASE4_STATUS.md)            | insurance/TPA, incentives, telemedicine (no video provider), inventory and CSSD delivery boundary          |
+| [Phase 5 boundaries](docs/PHASE5_STATUS.md)            | quality/CAPA (NABH/NABL-oriented evidence), patient portal (no IdP/gateway) and governed reporting boundary |
 | [Deployment runbook](docs/DEPLOYMENT.md)               | SQL migration, administrator/clinician provisioning, configuration and release checks                     |
 
 ## Working Phase 1 slice
@@ -36,7 +37,7 @@ A modular hospital information system foundation: **ASP.NET Core / .NET 10, SQL 
 - Pharmacy batch/expiry stock receipt, append-only stock movements, FEFO dispensing, OPD signed-prescription linkage, IPD active-medication-order linkage and request-hash idempotency.
 - LIS test ordering, barcode/accession collection, processing, rejection, result entry, second-person technical validation, pathologist authorization, critical alerts and immutable authorized reports.
 - Patient chart care-history tab with permission-filtered admissions, nursing notes, medication orders, dispenses and lab orders/results.
-- Branch module settings now cover Phase 4; Phase 5+ modules still cannot be activated by a toggle.
+- Branch module settings cover all implemented modules; planned integration modules (e.g. PACS) still cannot be activated by a toggle.
 
 ## Working Phase 3 slice
 
@@ -45,6 +46,14 @@ A modular hospital information system foundation: **ASP.NET Core / .NET 10, SQL 
 - Operation theatre: bookings with conflict-free theatre slots, the five-point surgical safety checklist required before time-in, server-clock procedure times and operation notes.
 - Blood bank: unit receipt with unique unit numbers and component-aware expiry, screening quarantine, red-cell/plasma crossmatch compatibility rules, issue-to-transfusion/return closure with reaction alerts.
 - Role switcher adds Radiologist and Blood Bank Technician.
+
+## Working Phase 5 slice
+
+- Quality & infection control: just-culture incident reports with triage and CAPA that cannot close before effectiveness verification, infection surveillance, a 5×5 risk register, computed quality indicators (periods `yyyy-MM`, numerator ≤ denominator) and controlled documents with append-only versions, review separation (the author cannot approve) and unique SOP acknowledgments. These are NABH/NABL-oriented **evidence records — not accreditation certification**.
+- Patient portal: identity-proofed accounts verified by a second person, deny-by-default record access (owner, active link, or an unexpired scoped proxy grant — Appointments/Records/Billing), revocable expiring proxy access, our own ephemeral device-session tokens, authorized-only report downloads with watermarks, and ledger-style bill payments (no payment gateway).
+- Reporting: definitions over a server-side query registry (arbitrary SQL is rejected), approve separation, bounded `from`/`to` parameters, `RPT-` executions, watermarked PDF/Excel exports and management/clinical/financial dashboards with freshness stamps.
+- The console includes a **patient-facing portal view** for portal-only logins (profile, appointments, prescriptions, downloads, bills) alongside the staff Quality, Patient Portal desk and Reporting workspaces.
+- Role switcher adds Quality Manager, Infection Control Nurse, Department Head and Patient.
 
 The preview’s **Doctor** role is Dr. Anjali Sharma. The initial **Hospital Admin** role can manage registration, queues, billing and configuration but cannot sign clinical records. Use the role selector at the bottom of the sidebar to explore permissions. This selector exists only in Demo mode.
 
@@ -60,9 +69,12 @@ src/Careflow.Web/             React workspace, design system and browser tests
 database/migrations/         versioned SQL Server migration
 database/examples/           optional development configuration; not production master data
 tests/Careflow.Tests/         executable application/domain tests
-tests/Careflow.SqlTests/      SQL Server integration release gate (Phase 1 + Phase 2 data paths)
+tests/Careflow.SqlTests/      SQL Server integration release gate (Phase 1–5 data paths)
 tests/api_smoke.py            loopback-only Phase 1 HTTP security/workflow checks
 tests/care_smoke.py           loopback-only Phase 2 HTTP care workflow checks
+tests/phase3_smoke.py         loopback-only Phase 3 HTTP workflow checks
+tests/phase4_smoke.py         loopback-only Phase 4 HTTP workflow checks
+tests/phase5_smoke.py         loopback-only Phase 5 HTTP workflow checks
 docs/                        architecture, module contracts and runbooks
 ```
 

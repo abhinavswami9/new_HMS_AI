@@ -82,6 +82,18 @@ public sealed record CareWorkspace(
     public IReadOnlyList<InstrumentSet> CssdSets { get; init; } = [];
     public IReadOnlyList<SterilizerCycle> CssdCycles { get; init; } = [];
     public IReadOnlyList<CssdIssue> CssdIssues { get; init; } = [];
+    public IReadOnlyList<Infection> Infections { get; init; } = [];
+    public IReadOnlyList<Incident> Incidents { get; init; } = [];
+    public IReadOnlyList<RiskAssessment> Risks { get; init; } = [];
+    public IReadOnlyList<Capa> Capas { get; init; } = [];
+    public IReadOnlyList<ClinicalAudit> Audits { get; init; } = [];
+    public IReadOnlyList<QualityIndicator> QualityIndicators { get; init; } = [];
+    public IReadOnlyList<IndicatorResult> IndicatorResults { get; init; } = [];
+    public IReadOnlyList<QualityDocument> QualityDocuments { get; init; } = [];
+    public IReadOnlyList<PortalAccount> PortalAccounts { get; init; } = [];
+    public IReadOnlyList<ProxyGrant> ProxyGrants { get; init; } = [];
+    public IReadOnlyList<ReportDefinition> ReportDefinitions { get; init; } = [];
+    public IReadOnlyList<ReportExecution> ReportExecutions { get; init; } = [];
     public static CareWorkspace Empty { get; } = new([], [], [], [], [], [], [], [], [], [], [], [], [], []);
 }
 public sealed record CareChart(IReadOnlyList<Admission> Admissions, IReadOnlyList<NursingNote> NursingNotes,
