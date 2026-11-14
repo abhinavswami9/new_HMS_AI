@@ -427,7 +427,7 @@ export function Overview() {
         <ShieldIcon />
         Patient care comes first. Every change is traceable.
         <span>
-          Careflow HIS <span>·</span> Phase 1 workspace
+          Careflow HIS <span>·</span> Hospital workspace
         </span>
       </div>
       {modal === "book" && <BookingModal onClose={() => setModal(null)} />}

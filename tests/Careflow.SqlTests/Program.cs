@@ -140,12 +140,20 @@ var lab2Scope = Scope.For(P(labtech2UserId, "SQL Test Labtech Two", "Lab Technic
 var pathScope = Scope.For(P(pathologistUserId, "SQL Test Pathologist", "Pathologist"), clock.UtcNow);
 
 // Phase 1: registration, scheduling, EMR, billing, IAM and audit on the SQL stores.
-var input = new PatientInput("SQL", "Patient", new DateOnly(1990, 1, 1), "Other", "+91 9000000111", $"sql-{runTag}@example.com");
+var input = new PatientInput("SQL", "Patient", new DateOnly(1990, 1, 1), "Other", "+91 9000000111", $"sql-{runTag}@example.com")
+{
+    Title = "Ms", MaritalStatus = "Married", FatherName = "R. SQL", MotherName = "S. SQL", Religion = "Hindu",
+    Occupation = "Service", Education = "Graduate", Language = "Hindi", Nationality = "Indian",
+    AadhaarNumber = "781234567890", AbhaNumber = "12345678901234", AbhaAddress = "sql.patient@abdm",
+    City = "New Delhi", State = "Delhi", Pincode = "110016", Country = "India"
+};
 Patient? registered = null;
 await Test("phase 1 registration allocates a scoped UHID and audits the write", async () =>
 {
     registered = await service.Register(scope, input, ct);
     Assert(registered.Uhid.StartsWith("NCH-"), "UHID should come from the SQL number sequence");
+    Assert((await Query1("SELECT AbhaNumber FROM patient.Patients WHERE Id=@id", ("id", registered.Id)))?.ToString() == "12345678901234", "ABHA identity fields persist to SQL");
+    Assert((await Query1("SELECT Pincode FROM patient.Patients WHERE Id=@id", ("id", registered.Id)))?.ToString() == "110016", "address demographics persist to SQL");
     Assert(Convert.ToInt32(await Query1("SELECT COUNT(1) FROM audit.AuditEvents WHERE HospitalId=@h AND EntityId=@id AND Action='patient.registered'", ("h", hospitalId), ("id", registered.Id))) == 1);
 });
 await Test("phase 1 duplicate registration demands explicit review", async () =>

@@ -139,7 +139,12 @@ public sealed class EmergencyService(IUnitOfWork unitOfWork, IClock clock)
             if (!patient.FullName.Equals(name, StringComparison.OrdinalIgnoreCase)) throw new DomainException("emergency.identity", "The supplied name does not match the linked patient identity.", 409);
         }
         var number = await s.NextNumberAsync("ER", $"{scope.BranchId}:{clock.UtcNow.Year}", $"ER-{clock.UtcNow.Year}", ct);
-        var registration = new EmergencyRegistration(Guid.NewGuid(), number, input.PatientId, name, input.Sex, input.DateOfBirth, input.ArrivalMode, "Open", clock.UtcNow, scope.Actor.Id);
+        var registration = new EmergencyRegistration(Guid.NewGuid(), number, input.PatientId, name, input.Sex, input.DateOfBirth, input.ArrivalMode, "Open", clock.UtcNow, scope.Actor.Id)
+        {
+            ReferringFacility = input.ReferringFacility.Trim().Length <= 200 ? input.ReferringFacility.Trim() : "",
+            BroughtBy = input.BroughtBy.Trim().Length <= 120 ? input.BroughtBy.Trim() : "",
+            MedicoLegalCase = input.MedicoLegalCase
+        };
         await s.InsertEmergencyRegistrationAsync(registration, ct);
         await s.AddAuditAsync(CareGuard.Event(scope, clock, "emergency.registration.created", "EmergencyRegistration", registration.Id, changes: new { input.ArrivalMode, Linked = input.PatientId is not null }), ct);
         return registration;

@@ -14,6 +14,26 @@ export type Patient = {
   createdAt: string;
   active: boolean;
   version: number;
+  title: string;
+  middleName: string;
+  maritalStatus: string;
+  fatherName: string;
+  spouseName: string;
+  motherName: string;
+  guardianName: string;
+  guardianRelation: string;
+  religion: string;
+  occupation: string;
+  education: string;
+  language: string;
+  nationality: string;
+  aadhaarNumber: string;
+  abhaNumber: string;
+  abhaAddress: string;
+  city: string;
+  state: string;
+  pincode: string;
+  country: string;
 };
 export type Doctor = {
   id: string;
@@ -216,6 +236,13 @@ export type Admission = {
   dischargeDiagnosis: string;
   dischargeInstructions: string;
   version: number;
+  admissionType: string;
+  diagnosisOnAdmission: string;
+  attendantName: string;
+  attendantPhone: string;
+  payerType: string;
+  coverageId: string | null;
+  expectedDischargeDate: string | null;
 };
 export type BedEvent = {
   id: string;
@@ -616,6 +643,9 @@ export type EmergencyRegistration = {
   arrivedAt: string;
   createdBy: string;
   version: number;
+  referringFacility: string;
+  broughtBy: string;
+  medicoLegalCase: boolean;
 };
 export type TriageAssessment = {
   id: string;

@@ -36,7 +36,16 @@ public sealed class InpatientService(IUnitOfWork unitOfWork, IClock clock)
         if (await s.FindActiveAdmissionByPatientAsync(input.PatientId, ct) is not null) throw new DomainException("admission.active", "The patient already has an active admission.", 409);
         var reason = CareGuard.Text(input.Reason, 5, 1000, "Admission reason");
         var number = await s.NextNumberAsync("ADMISSION", $"{scope.BranchId}:{clock.UtcNow.Year}", $"ADM-{clock.UtcNow.Year}", ct);
-        var admission = new Admission(Guid.NewGuid(), number, input.PatientId, bed.Id, input.DoctorId, "Active", reason, clock.UtcNow, null, "", "", "");
+        var admission = new Admission(Guid.NewGuid(), number, input.PatientId, bed.Id, input.DoctorId, "Active", reason, clock.UtcNow, null, "", "", "")
+        {
+            AdmissionType = new[] { "Emergency", "Elective", "Transfer", "Obstetric" }.Contains(input.AdmissionType) ? input.AdmissionType : "Elective",
+            DiagnosisOnAdmission = input.DiagnosisOnAdmission.Trim().Length <= 500 ? input.DiagnosisOnAdmission.Trim() : "",
+            AttendantName = input.AttendantName.Trim().Length <= 120 ? input.AttendantName.Trim() : "",
+            AttendantPhone = input.AttendantPhone.Trim().Length <= 30 ? input.AttendantPhone.Trim() : "",
+            PayerType = new[] { "Self", "Insurance", "Corporate" }.Contains(input.PayerType) ? input.PayerType : "Self",
+            CoverageId = input.PayerType == "Insurance" ? input.CoverageId : null,
+            ExpectedDischargeDate = input.ExpectedDischargeDate
+        };
         await s.InsertAdmissionAsync(admission, ct);
         await s.UpdateBedAsync(bed with { Status = "Occupied", Version = bed.Version + 1 }, ct);
         await s.InsertBedEventAsync(new BedEvent(Guid.NewGuid(), admission.Id, bed.Id, "Admitted", "Available", "Occupied", scope.Actor.Id, clock.UtcNow, reason), ct);

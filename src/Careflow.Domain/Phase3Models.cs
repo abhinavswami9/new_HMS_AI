@@ -9,7 +9,12 @@ public sealed record RadiologyReport(Guid Id, Guid OrderId, int Version, string 
     bool Critical, string Status, Guid ReportedBy, DateTimeOffset ReportedAt,
     Guid? AuthorizedBy, DateTimeOffset? AuthorizedAt, string? ContentHash);
 public sealed record EmergencyRegistration(Guid Id, string Number, Guid? PatientId, string PatientName, string Sex,
-    DateOnly? DateOfBirth, string ArrivalMode, string Status, DateTimeOffset ArrivedAt, Guid CreatedBy, long Version = 1);
+    DateOnly? DateOfBirth, string ArrivalMode, string Status, DateTimeOffset ArrivedAt, Guid CreatedBy, long Version = 1)
+{
+    public string ReferringFacility { get; init; } = "";
+    public string BroughtBy { get; init; } = "";
+    public bool MedicoLegalCase { get; init; }
+};
 public sealed record TriageAssessment(Guid Id, Guid RegistrationId, string Category, string Complaint,
     VitalSet Vitals, Guid AssessedBy, DateTimeOffset AssessedAt);
 public sealed record EmergencyObservation(Guid Id, Guid RegistrationId, string Note, VitalSet Vitals,

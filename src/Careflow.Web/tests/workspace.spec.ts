@@ -164,7 +164,7 @@ test("mobile navigation, module honesty and dark appearance", async ({
     page.getByRole("heading", { name: "One platform. Every possibility." }),
   ).toBeVisible();
   await page.getByLabel("Filter module phase").selectOption("Phase 3");
-  await page.getByRole("button", { name: /Phase 3.*PACS/ }).click();
+  await page.getByRole("button", { name: /PACS & DICOM/ }).click();
   await expect(page.getByRole("dialog")).toContainText(
     "implementation planned",
   );

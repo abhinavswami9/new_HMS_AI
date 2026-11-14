@@ -16,7 +16,29 @@ public sealed class HospitalService(IUnitOfWork unitOfWork, IClock clock, IPassw
     {
         if (input.Email.Length > 254 || input.Address.Length > 500 || input.EmergencyContact.Length > 200 || input.DuplicateReviewReason.Length > 1000 || !new[] { "Unknown", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-" }.Contains(input.BloodGroup) || input.Email.Length > 0 && !System.Net.Mail.MailAddress.TryCreate(input.Email, out _))
             throw new DomainException("patient.fields", "Review contact fields, blood group and permitted lengths.");
+        bool Digits(string v, int n) => v.Length == 0 || v.Length == n && v.All(char.IsDigit);
+        bool Short(string v, int n) => v.Length <= n;
+        if (!Short(input.Title, 10) || !Short(input.MiddleName, 80) || !Short(input.FatherName, 120) || !Short(input.SpouseName, 120) || !Short(input.MotherName, 120) ||
+            !Short(input.GuardianName, 120) || !Short(input.GuardianRelation, 40) || !Short(input.Religion, 60) || !Short(input.Occupation, 120) || !Short(input.Education, 120) ||
+            !Short(input.Language, 60) || !Short(input.Nationality, 60) || !Short(input.AbhaAddress, 100) || !Short(input.City, 80) || !Short(input.State, 80) || !Short(input.Country, 60) ||
+            !Digits(input.AadhaarNumber, 12) || !Digits(input.AbhaNumber, 14) || !Digits(input.Pincode, 6) ||
+            input.MaritalStatus is not ("" or "Single" or "Married" or "Widowed" or "Divorced" or "Separated") ||
+            input.Title is not ("" or "Mr" or "Mrs" or "Ms" or "Dr" or "Baby"))
+            throw new DomainException("patient.fields", "Review demographic fields: Aadhaar is 12 digits, ABHA number is 14 digits, PIN code is 6 digits.");
+        if (input.AadhaarNumber.Length > 0 && input.AbhaNumber.Length == 0 && input.AbhaAddress.Length == 0)
+            throw new DomainException("patient.abha", "Record an ABHA number or ABHA address when linking Aadhaar, or leave Aadhaar blank.");
     }
+    private static Patient ApplyDemographics(Patient patient, PatientInput input) => patient with
+    {
+        Title = input.Title.Trim(), MiddleName = input.MiddleName.Trim(), MaritalStatus = input.MaritalStatus,
+        FatherName = input.FatherName.Trim(), SpouseName = input.SpouseName.Trim(), MotherName = input.MotherName.Trim(),
+        GuardianName = input.GuardianName.Trim(), GuardianRelation = input.GuardianRelation.Trim(),
+        Religion = input.Religion.Trim(), Occupation = input.Occupation.Trim(), Education = input.Education.Trim(),
+        Language = input.Language.Trim(), Nationality = input.Nationality.Trim() is { Length: > 0 } n ? n : "Indian",
+        AadhaarNumber = input.AadhaarNumber.Trim(), AbhaNumber = input.AbhaNumber.Trim(), AbhaAddress = input.AbhaAddress.Trim(),
+        City = input.City.Trim(), State = input.State.Trim(), Pincode = input.Pincode.Trim(),
+        Country = input.Country.Trim() is { Length: > 0 } c ? c : "India"
+    };
     public async Task<WorkspaceResult> GetWorkspace(Scope scope, CancellationToken ct)
     {
         scope.Require(Permissions.PatientRead);
@@ -50,8 +72,8 @@ public sealed class HospitalService(IUnitOfWork unitOfWork, IClock clock, IPassw
         if (duplicates.Count > 0 && input.DuplicateReviewReason.Trim().Length < 10)
             throw new DomainException("patient.duplicate", "A possible existing patient was found. Search the registry or record a duplicate-review reason.", 409);
         var uhid = await s.NextNumberAsync("UHID", scope.HospitalId.ToString(), $"NCH-{clock.UtcNow.Year}", ct);
-        var patient = new Patient(Guid.NewGuid(), uhid, input.FirstName.Trim(), input.LastName.Trim(), input.DateOfBirth, input.Sex,
-            input.Phone.Trim(), input.Email.Trim(), input.BloodGroup, input.Address.Trim(), input.EmergencyContact.Trim(), clock.UtcNow);
+        var patient = ApplyDemographics(new Patient(Guid.NewGuid(), uhid, input.FirstName.Trim(), input.LastName.Trim(), input.DateOfBirth, input.Sex,
+            input.Phone.Trim(), input.Email.Trim(), input.BloodGroup, input.Address.Trim(), input.EmergencyContact.Trim(), clock.UtcNow), input);
         await s.InsertPatientAsync(patient, ct);
         await s.AddAuditAsync(Event(scope, "patient.registered", "Patient", patient.Id, input.DuplicateReviewReason), ct);
         return patient;
@@ -80,6 +102,7 @@ public sealed class HospitalService(IUnitOfWork unitOfWork, IClock clock, IPassw
             BloodGroup = input.BloodGroup,
             Version = version + 1
         };
+        patient = ApplyDemographics(patient, input);
         await s.UpdatePatientAsync(patient, ct);
         await s.AddAuditAsync(Event(scope, "patient.updated", "Patient", id, input.DuplicateReviewReason, new { Before = old, After = patient }), ct);
         return patient;

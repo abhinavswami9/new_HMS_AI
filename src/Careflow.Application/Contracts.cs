@@ -10,7 +10,29 @@ public sealed record Scope(Guid HospitalId, Guid BranchId, Principal Actor, Date
     }
 }
 public sealed record PatientInput(string FirstName, string LastName, DateOnly DateOfBirth, string Sex,
-    string Phone = "", string Email = "", string BloodGroup = "Unknown", string Address = "", string EmergencyContact = "", string DuplicateReviewReason = "");
+    string Phone = "", string Email = "", string BloodGroup = "Unknown", string Address = "", string EmergencyContact = "", string DuplicateReviewReason = "")
+{
+    public string Title { get; init; } = "";
+    public string MiddleName { get; init; } = "";
+    public string MaritalStatus { get; init; } = "";
+    public string FatherName { get; init; } = "";
+    public string SpouseName { get; init; } = "";
+    public string MotherName { get; init; } = "";
+    public string GuardianName { get; init; } = "";
+    public string GuardianRelation { get; init; } = "";
+    public string Religion { get; init; } = "";
+    public string Occupation { get; init; } = "";
+    public string Education { get; init; } = "";
+    public string Language { get; init; } = "";
+    public string Nationality { get; init; } = "Indian";
+    public string AadhaarNumber { get; init; } = "";
+    public string AbhaNumber { get; init; } = "";
+    public string AbhaAddress { get; init; } = "";
+    public string City { get; init; } = "";
+    public string State { get; init; } = "";
+    public string Pincode { get; init; } = "";
+    public string Country { get; init; } = "India";
+}
 public sealed record BookingInput(Guid PatientId, Guid DoctorId, DateTimeOffset StartsAt, int DurationMinutes = 20, string Mode = "In person", string Reason = "");
 public sealed record DraftInput(string ChiefComplaint, string Examination, string Diagnosis, string Plan, string FollowUp,
     VitalSet Vitals, IReadOnlyList<Allergy> Allergies, IReadOnlyList<PrescriptionItem> Prescription,

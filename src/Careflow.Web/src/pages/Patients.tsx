@@ -38,7 +38,7 @@ export function Patients() {
   const [register, setRegister] = useState(false);
   const filtered = data.patients.filter(
     (p) =>
-      `${p.fullName} ${p.uhid} ${p.phone}`
+      `${p.fullName} ${p.uhid} ${p.phone} ${p.abhaNumber} ${p.abhaAddress} ${p.aadhaarNumber} ${p.city} ${p.fatherName}`
         .toLowerCase()
         .includes(search.toLowerCase()) &&
       (sex === "All patients" || p.sex === sex),
@@ -147,6 +147,7 @@ export function Patients() {
                 <th>Contact number</th>
                 <th>Registered</th>
                 <th>Blood group</th>
+                <th>ABHA</th>
                 <th />
               </tr>
             </thead>
@@ -180,6 +181,13 @@ export function Patients() {
                   <td>{shortDate(p.createdAt)}</td>
                   <td>
                     <span className="blood-tag">{p.bloodGroup}</span>
+                  </td>
+                  <td>
+                    {p.abhaNumber ? (
+                      <span className="blood-tag">{p.abhaNumber}</span>
+                    ) : (
+                      <span className="muted">—</span>
+                    )}
                   </td>
                   <td>
                     <ChevronIcon />
@@ -275,6 +283,16 @@ export function PatientDetail() {
               {age(p.dateOfBirth)} years · {p.sex}
             </span>
             <span className="blood-tag">{p.bloodGroup}</span>
+            {p.abhaNumber && (
+              <span className="blood-tag" title={`ABHA address: ${p.abhaAddress || "not set"}`}>
+                ABHA {p.abhaNumber}
+              </span>
+            )}
+            {p.aadhaarNumber && (
+              <span className="blood-tag" title="Aadhaar recorded at registration">
+                Aadhaar ••••{p.aadhaarNumber.slice(-4)}
+              </span>
+            )}
           </p>
         </div>
         <div className="heading-actions">
@@ -303,8 +321,15 @@ export function PatientDetail() {
         </span>
         <span>
           <MapPin size={16} />
-          {p.address || "No address recorded"}
+          {[p.address, p.city, p.state, p.pincode].filter(Boolean).join(", ") ||
+            "No address recorded"}
         </span>
+        {(p.abhaNumber || p.abhaAddress) && (
+          <span title="ABHA identity linkage recorded at registration">
+            <ShieldCheck size={16} />
+            {p.abhaNumber ? `ABHA ${p.abhaNumber}` : p.abhaAddress}
+          </span>
+        )}
       </div>
       {chart.historyTruncated && (
         <div className="info-note standalone">
@@ -530,14 +555,93 @@ export function PatientDetail() {
                   <strong>{shortDate(p.createdAt)}</strong>
                 </div>
                 <div>
+                  <span>Sex / gender</span>
+                  <strong>{p.sex}</strong>
+                </div>
+                <div>
+                  <span>Marital status</span>
+                  <strong>{p.maritalStatus || "Not recorded"}</strong>
+                </div>
+                <div>
+                  <span>Blood group</span>
+                  <strong>{p.bloodGroup}</strong>
+                </div>
+                <div>
+                  <span>Language</span>
+                  <strong>{p.language || "Not recorded"}</strong>
+                </div>
+                <div>
+                  <span>Father's name</span>
+                  <strong>{p.fatherName || "Not recorded"}</strong>
+                </div>
+                <div>
+                  <span>Spouse's name</span>
+                  <strong>{p.spouseName || "Not recorded"}</strong>
+                </div>
+                <div>
+                  <span>Mother's name</span>
+                  <strong>{p.motherName || "Not recorded"}</strong>
+                </div>
+                <div>
+                  <span>Guardian</span>
+                  <strong>
+                    {p.guardianName
+                      ? `${p.guardianName}${p.guardianRelation ? ` (${p.guardianRelation})` : ""}`
+                      : "Not applicable"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Religion</span>
+                  <strong>{p.religion || "Not recorded"}</strong>
+                </div>
+                <div>
+                  <span>Occupation</span>
+                  <strong>{p.occupation || "Not recorded"}</strong>
+                </div>
+                <div>
+                  <span>Education</span>
+                  <strong>{p.education || "Not recorded"}</strong>
+                </div>
+                <div>
+                  <span>Nationality</span>
+                  <strong>{p.nationality || "Indian"}</strong>
+                </div>
+                <div>
                   <span>Emergency contact</span>
                   <strong>{p.emergencyContact || "Not provided"}</strong>
                 </div>
                 <div>
-                  <span>ABHA linkage</span>
-                  <strong>Not linked</strong>
+                  <span>Address</span>
+                  <strong>
+                    {[p.address, p.city, p.state, p.pincode, p.country]
+                      .filter(Boolean)
+                      .join(", ") || "Not recorded"}
+                  </strong>
+                </div>
+                <div>
+                  <span>ABHA number</span>
+                  <strong>{p.abhaNumber || "Not linked"}</strong>
+                </div>
+                <div>
+                  <span>ABHA address</span>
+                  <strong>{p.abhaAddress || "Not linked"}</strong>
+                </div>
+                <div>
+                  <span>Aadhaar</span>
+                  <strong>
+                    {p.aadhaarNumber
+                      ? `•••• •••• ${p.aadhaarNumber.slice(-4)}`
+                      : "Not recorded"}
+                  </strong>
                 </div>
               </div>
+              {(p.abhaNumber || p.abhaAddress || p.aadhaarNumber) && (
+                <p className="muted small" style={{ marginTop: 10 }}>
+                  ABHA/Aadhaar values are recorded at registration for identity
+                  linkage. No external ABDM gateway is integrated — verification
+                  is documentary. Aadhaar is masked in views.
+                </p>
+              )}
             </section>
             <section className="card mt-20">
               <div className="card-header">

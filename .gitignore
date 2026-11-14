@@ -29,3 +29,7 @@ src/Careflow.Api/wwwroot/
 Thumbs.db
 .idea/
 .vscode/
+
+# Python bytecode
+__pycache__/
+*.pyc

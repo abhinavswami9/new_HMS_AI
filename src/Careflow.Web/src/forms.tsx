@@ -3,7 +3,11 @@ import {
   CalendarDays,
   Check,
   CreditCard,
+  HeartPulse,
+  Home,
+  Phone,
   ShieldCheck,
+  Users,
   UserRoundPlus,
 } from "lucide-react";
 import { useApp } from "./store";
@@ -22,22 +26,42 @@ export function RegistrationModal({
   const [error, setError] = useState("");
   const [reason, setReason] = useState("");
   const [form, setForm] = useState({
+    title: "",
     firstName: "",
+    middleName: "",
     lastName: "",
     dateOfBirth: "",
     sex: "Female",
+    maritalStatus: "",
+    fatherName: "",
+    spouseName: "",
+    motherName: "",
+    guardianName: "",
+    guardianRelation: "",
     phone: "",
     email: "",
-    bloodGroup: "Unknown",
-    address: "",
     emergencyContact: "",
+    address: "",
+    city: "",
+    state: "",
+    pincode: "",
+    country: "India",
+    religion: "",
+    occupation: "",
+    education: "",
+    language: "",
+    nationality: "Indian",
+    bloodGroup: "Unknown",
+    aadhaarNumber: "",
+    abhaNumber: "",
+    abhaAddress: "",
   });
   const set = (key: keyof typeof form, value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
   return (
     <Modal
       title="Register a new patient"
-      subtitle="A unique UHID is assigned after registration."
+      subtitle="A unique UHID is assigned after registration. Fields marked * are required; everything else strengthens the record."
       onClose={onClose}
       wide
     >
@@ -65,9 +89,18 @@ export function RegistrationModal({
         <div className="modal-body">
           <div className="form-section-label">
             <UserRoundPlus size={17} />
-            Patient demographics
+            Identity
           </div>
           <div className="form-grid">
+            <Field label="Title">
+              <select value={form.title} onChange={(e) => set("title", e.target.value)}>
+                {["", "Mr", "Mrs", "Ms", "Dr", "Baby"].map((x) => (
+                  <option key={x} value={x}>
+                    {x || "—"}
+                  </option>
+                ))}
+              </select>
+            </Field>
             <Field label="First name" required>
               <input
                 required
@@ -75,6 +108,13 @@ export function RegistrationModal({
                 value={form.firstName}
                 onChange={(e) => set("firstName", e.target.value)}
                 placeholder="e.g. Ananya"
+              />
+            </Field>
+            <Field label="Middle name">
+              <input
+                maxLength={80}
+                value={form.middleName}
+                onChange={(e) => set("middleName", e.target.value)}
               />
             </Field>
             <Field label="Last name" required>
@@ -105,22 +145,17 @@ export function RegistrationModal({
                 ))}
               </select>
             </Field>
-            <Field label="Mobile number">
-              <input
-                type="tel"
-                maxLength={20}
-                value={form.phone}
-                onChange={(e) => set("phone", e.target.value)}
-                placeholder="+91 98765 43210"
-              />
-            </Field>
-            <Field label="Email address">
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => set("email", e.target.value)}
-                placeholder="patient@example.com"
-              />
+            <Field label="Marital status">
+              <select
+                value={form.maritalStatus}
+                onChange={(e) => set("maritalStatus", e.target.value)}
+              >
+                {["", "Single", "Married", "Widowed", "Divorced", "Separated"].map((x) => (
+                  <option key={x} value={x}>
+                    {x || "—"}
+                  </option>
+                ))}
+              </select>
             </Field>
             <Field label="Blood group">
               <select
@@ -142,6 +177,50 @@ export function RegistrationModal({
                 ))}
               </select>
             </Field>
+          </div>
+          <div className="form-section-label">
+            <Users size={17} />
+            Family &amp; guardian
+          </div>
+          <div className="form-grid">
+            <Field label="Father's name">
+              <input maxLength={120} value={form.fatherName} onChange={(e) => set("fatherName", e.target.value)} />
+            </Field>
+            <Field label="Spouse's name">
+              <input maxLength={120} value={form.spouseName} onChange={(e) => set("spouseName", e.target.value)} />
+            </Field>
+            <Field label="Mother's name">
+              <input maxLength={120} value={form.motherName} onChange={(e) => set("motherName", e.target.value)} />
+            </Field>
+            <Field label="Guardian name" hint="For minors and dependants.">
+              <input maxLength={120} value={form.guardianName} onChange={(e) => set("guardianName", e.target.value)} />
+            </Field>
+            <Field label="Guardian relation">
+              <input maxLength={40} value={form.guardianRelation} onChange={(e) => set("guardianRelation", e.target.value)} placeholder="Father / Mother / Sibling" />
+            </Field>
+          </div>
+          <div className="form-section-label">
+            <Phone size={17} />
+            Contact
+          </div>
+          <div className="form-grid">
+            <Field label="Mobile number">
+              <input
+                type="tel"
+                maxLength={20}
+                value={form.phone}
+                onChange={(e) => set("phone", e.target.value)}
+                placeholder="+91 98765 43210"
+              />
+            </Field>
+            <Field label="Email address">
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => set("email", e.target.value)}
+                placeholder="patient@example.com"
+              />
+            </Field>
             <Field label="Emergency contact">
               <input
                 maxLength={200}
@@ -150,6 +229,12 @@ export function RegistrationModal({
                 placeholder="Name and phone number"
               />
             </Field>
+          </div>
+          <div className="form-section-label">
+            <Home size={17} />
+            Address
+          </div>
+          <div className="form-grid">
             <div className="span-2">
               <Field label="Residential address">
                 <textarea
@@ -157,16 +242,66 @@ export function RegistrationModal({
                   maxLength={500}
                   value={form.address}
                   onChange={(e) => set("address", e.target.value)}
-                  placeholder="House, street, city, state and postal code"
+                  placeholder="House number, street, locality, landmark"
                 />
               </Field>
             </div>
+            <Field label="City">
+              <input maxLength={80} value={form.city} onChange={(e) => set("city", e.target.value)} />
+            </Field>
+            <Field label="State / UT">
+              <input maxLength={80} value={form.state} onChange={(e) => set("state", e.target.value)} />
+            </Field>
+            <Field label="PIN code">
+              <input inputMode="numeric" maxLength={6} value={form.pincode} onChange={(e) => set("pincode", e.target.value)} placeholder="110016" />
+            </Field>
+            <Field label="Country">
+              <input maxLength={60} value={form.country} onChange={(e) => set("country", e.target.value)} />
+            </Field>
+          </div>
+          <div className="form-section-label">
+            <HeartPulse size={17} />
+            Background
+          </div>
+          <div className="form-grid">
+            <Field label="Religion">
+              <input maxLength={60} value={form.religion} onChange={(e) => set("religion", e.target.value)} />
+            </Field>
+            <Field label="Occupation">
+              <input maxLength={120} value={form.occupation} onChange={(e) => set("occupation", e.target.value)} />
+            </Field>
+            <Field label="Education">
+              <input maxLength={120} value={form.education} onChange={(e) => set("education", e.target.value)} />
+            </Field>
+            <Field label="Preferred language">
+              <input maxLength={60} value={form.language} onChange={(e) => set("language", e.target.value)} placeholder="Hindi / English" />
+            </Field>
+            <Field label="Nationality">
+              <input maxLength={60} value={form.nationality} onChange={(e) => set("nationality", e.target.value)} />
+            </Field>
+          </div>
+          <div className="form-section-label">
+            <ShieldCheck size={17} />
+            ABHA &amp; identity linkage
+          </div>
+          <div className="form-grid">
+            <Field label="ABHA number" hint="14 digits. Leave blank if not issued yet.">
+              <input inputMode="numeric" maxLength={14} value={form.abhaNumber} onChange={(e) => set("abhaNumber", e.target.value)} placeholder="12345678901234" />
+            </Field>
+            <Field label="ABHA address" hint="e.g. name.lastname@abdm">
+              <input maxLength={100} value={form.abhaAddress} onChange={(e) => set("abhaAddress", e.target.value)} />
+            </Field>
+            <Field label="Aadhaar number" hint="12 digits. Requires an ABHA number or ABHA address alongside.">
+              <input inputMode="numeric" maxLength={12} value={form.aadhaarNumber} onChange={(e) => set("aadhaarNumber", e.target.value)} placeholder="123456789012" />
+            </Field>
           </div>
           <div className="info-note">
             <ShieldCheck size={18} />
             <span>
-              Possible duplicates are checked before a new UHID is created.
-              Fields marked * are required.
+              ABHA/Aadhaar values are recorded and displayed for identity
+              linkage at the desk. No external ABDM gateway is integrated —
+              verification stays documentary. Possible duplicates are checked
+              before a new UHID is created.
             </span>
           </div>
           {error && <ErrorNote>{error}</ErrorNote>}
@@ -194,6 +329,7 @@ export function RegistrationModal({
     </Modal>
   );
 }
+
 export function BookingModal({
   onClose,
   patientId,

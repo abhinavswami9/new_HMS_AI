@@ -6,7 +6,12 @@ public sealed record RadiologyOrderInput(Guid PatientId, Guid? EncounterId, Guid
 public sealed record RadiologyScheduleInput(DateTimeOffset At, long Version);
 public sealed record RadiologyPerformInput(string StudyUid, long Version);
 public sealed record RadiologyReportInput(string Findings, string Impression, bool Critical, long Version);
-public sealed record EmergencyRegistrationInput(Guid? PatientId, string PatientName, string Sex, DateOnly? DateOfBirth, string ArrivalMode);
+public sealed record EmergencyRegistrationInput(Guid? PatientId, string PatientName, string Sex, DateOnly? DateOfBirth, string ArrivalMode)
+{
+    public string ReferringFacility { get; init; } = "";
+    public string BroughtBy { get; init; } = "";
+    public bool MedicoLegalCase { get; init; }
+};
 public sealed record TriageInput(string Category, string Complaint, VitalSet Vitals);
 public sealed record EmergencyObservationInput(string Note, VitalSet Vitals);
 public sealed record DispositionInput(string Kind, string Summary, Guid? BedId, Guid? DoctorId, string? ReceivingFacility);

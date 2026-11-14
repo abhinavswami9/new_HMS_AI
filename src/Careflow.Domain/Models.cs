@@ -65,6 +65,26 @@ public sealed record Patient(Guid Id, string Uhid, string FirstName, string Last
     DateTimeOffset CreatedAt, bool Active = true, long Version = 1)
 {
     public string FullName => $"{FirstName} {LastName}";
+    public string Title { get; init; } = "";
+    public string MiddleName { get; init; } = "";
+    public string MaritalStatus { get; init; } = "";
+    public string FatherName { get; init; } = "";
+    public string SpouseName { get; init; } = "";
+    public string MotherName { get; init; } = "";
+    public string GuardianName { get; init; } = "";
+    public string GuardianRelation { get; init; } = "";
+    public string Religion { get; init; } = "";
+    public string Occupation { get; init; } = "";
+    public string Education { get; init; } = "";
+    public string Language { get; init; } = "";
+    public string Nationality { get; init; } = "Indian";
+    public string AadhaarNumber { get; init; } = "";
+    public string AbhaNumber { get; init; } = "";
+    public string AbhaAddress { get; init; } = "";
+    public string City { get; init; } = "";
+    public string State { get; init; } = "";
+    public string Pincode { get; init; } = "";
+    public string Country { get; init; } = "India";
 }
 public sealed record ServiceItem(Guid Id, string Name, string Department, decimal Price);
 public sealed record Medicine(Guid Id, string GenericName, string BrandName, string Strength, string Form);

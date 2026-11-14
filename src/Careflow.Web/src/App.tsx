@@ -508,7 +508,7 @@ function Shell() {
             <ShieldCheck size={13} />
             <span>Synthetic preview · no real patient data</span>
             <span className="demo-ribbon-right">
-              Phase 5 <span>·</span> Connected to the Careflow API
+              Connected to the Careflow API
             </span>
           </div>
         )}

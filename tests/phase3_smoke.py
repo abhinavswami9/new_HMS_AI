@@ -50,8 +50,9 @@ check('authorized study cannot be cancelled', call('POST', f"/radiology/orders/{
 check('PACS viewer launch fails closed', call('GET', f"/radiology/studies/{order['id']}/viewer-launch")[0] == 501)
 
 # Emergency: register -> triage -> observe -> dispose
-status, er = call('POST', '/emergency/registrations', {'patientId': patient['id'], 'patientName': f'P3 Smoke{suffix}', 'sex': 'Other', 'dateOfBirth': None, 'arrivalMode': 'Ambulance'}, role='Doctor')
+status, er = call('POST', '/emergency/registrations', {'patientId': patient['id'], 'patientName': f'P3 Smoke{suffix}', 'sex': 'Other', 'dateOfBirth': None, 'arrivalMode': 'Ambulance', 'referringFacility': 'P3 Referral Clinic', 'broughtBy': 'Family escort', 'medicoLegalCase': True}, role='Doctor')
 check('emergency episode registered', status == 200 and er['number'].startswith('ER-'))
+check('emergency arrival details are captured', er['referringFacility'] == 'P3 Referral Clinic' and er['broughtBy'] == 'Family escort' and er['medicoLegalCase'] is True)
 check('identity mismatch is rejected', call('POST', '/emergency/registrations', {'patientId': patient['id'], 'patientName': 'Wrong Name', 'sex': 'Other', 'dateOfBirth': None, 'arrivalMode': 'Walk-in'}, role='Doctor')[0] == 409)
 status, triage = call('POST', f"/emergency/registrations/{er['id']}/triage", {'category': 'Red', 'complaint': 'Synthetic crushing chest pain with diaphoresis', 'vitals': {'temperatureC': 36.8, 'pulse': 110, 'systolic': 140, 'diastolic': 90, 'weightKg': None, 'spo2': 94}}, role='Nurse')
 check('triage assessment recorded', status == 200 and triage['category'] == 'Red')

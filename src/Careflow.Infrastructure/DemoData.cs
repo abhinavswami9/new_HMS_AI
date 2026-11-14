@@ -119,6 +119,29 @@ public sealed class DemoData
         d.Patients = names.Select((n, i) => new Patient(Guid.Parse($"50000000-0000-0000-0000-{i + 1:D12}"), $"NCH-{now.Year}-{1241 + i:D6}", n.Item1, n.Item2,
             new DateOnly(now.Year - n.Item3, i % 12 + 1, Math.Min(13 + i, 28)), n.Item4, $"+91 98{76543210 + i}", $"{n.Item1.ToLower()}@example.com",
             new[] { "B+", "O+", "A+", "Unknown", "AB+", "O-" }[i % 6], $"{21 + i} Green Park, New Delhi, 110016", $"Family contact · +91 99{87654321 + i}", now.AddHours(-i * 3))).ToList();
+        d.Patients = d.Patients.Select((p, i) => p with
+        {
+            Title = p.Sex == "Female" ? (i % 2 == 0 ? "Ms" : "Mrs") : "Mr",
+            MiddleName = i % 3 == 0 ? "Kumar" : i % 3 == 1 ? "Raj" : "",
+            MaritalStatus = i % 3 == 0 ? "Married" : i % 3 == 1 ? "Single" : "Married",
+            FatherName = $"Mr. {names[i % names.Length].Item2} Senior",
+            MotherName = $"Mrs. {names[(i + 4) % names.Length].Item2}",
+            SpouseName = i % 3 == 0 ? $"Mrs. {names[(i + 2) % names.Length].Item2}" : "",
+            GuardianName = i == 9 ? "Rajiv Verma" : "",
+            GuardianRelation = i == 9 ? "Father" : "",
+            Religion = new[] { "Hindu", "Muslim", "Sikh", "Christian" }[i % 4],
+            Occupation = new[] { "Service", "Business", "Homemaker", "Retired", "Self-employed" }[i % 5],
+            Education = new[] { "Graduate", "Post-graduate", "School" }[i % 3],
+            Language = i % 4 == 3 ? "English" : "Hindi",
+            Nationality = "Indian",
+            AadhaarNumber = $"78{i:D3}4567{i:D3}",
+            AbhaNumber = i < 5 ? $"{i + 1:D2}3456789012{i:D2}" : "",
+            AbhaAddress = i < 5 ? $"{p.FirstName.ToLower()}.{p.LastName.ToLower()}@abdm" : "",
+            City = "New Delhi",
+            State = "Delhi",
+            Pincode = $"1100{i % 10}{(i + 2) % 10}6",
+            Country = "India"
+        }).ToList();
         d.Doctors = [new(SeedIds.Doctor, "Dr. Anjali Sharma", "Cardiology", "AS", "#568f83"), new(Guid.Parse("40000000-0000-0000-0000-000000000002"), "Dr. Rahul Verma", "General Medicine", "RV", "#668eaf"), new(Guid.Parse("40000000-0000-0000-0000-000000000003"), "Dr. Priya Menon", "Orthopaedics", "PM", "#9b85af"), new(Guid.Parse("40000000-0000-0000-0000-000000000004"), "Dr. Arjun Desai", "Pediatrics", "AD", "#c1a064"), new(Guid.Parse("40000000-0000-0000-0000-000000000005"), "Dr. Neha Kapoor", "Dermatology", "NK", "#b58491")];
         d.Services = [new(Guid.Parse("60000000-0000-0000-0000-000000000001"), "General consultation", "General Medicine", 600), new(Guid.Parse("60000000-0000-0000-0000-000000000002"), "Specialist consultation", "Cardiology", 1000), new(Guid.Parse("60000000-0000-0000-0000-000000000003"), "Complete blood count (CBC)", "Laboratory", 350), new(Guid.Parse("60000000-0000-0000-0000-000000000004"), "X-ray · single view", "Radiology", 900), new(Guid.Parse("60000000-0000-0000-0000-000000000005"), "Electrocardiogram (ECG)", "Cardiology", 500), new(Guid.Parse("60000000-0000-0000-0000-000000000006"), "Dressing & wound care", "Procedures", 250), new(Guid.Parse("60000000-0000-0000-0000-000000000007"), "Follow-up consultation", "General Medicine", 400)];
         d.Medicines = [new(Guid.Parse("70000000-0000-0000-0000-000000000001"), "Paracetamol", "Crocin", "500 mg", "Tablet"), new(Guid.Parse("70000000-0000-0000-0000-000000000002"), "Amoxicillin", "Mox", "500 mg", "Capsule"), new(Guid.Parse("70000000-0000-0000-0000-000000000003"), "Cetirizine", "Cetzine", "10 mg", "Tablet"), new(Guid.Parse("70000000-0000-0000-0000-000000000004"), "Metformin", "Glycomet", "500 mg", "Tablet"), new(Guid.Parse("70000000-0000-0000-0000-000000000005"), "Amlodipine", "Amlong", "5 mg", "Tablet"), new(Guid.Parse("70000000-0000-0000-0000-000000000006"), "Pantoprazole", "Pantocid", "40 mg", "Tablet"), new(Guid.Parse("70000000-0000-0000-0000-000000000007"), "Azithromycin", "Azithral", "500 mg", "Tablet"), new(Guid.Parse("70000000-0000-0000-0000-000000000008"), "Ibuprofen", "Brufen", "400 mg", "Tablet")];
@@ -150,7 +173,7 @@ public sealed class DemoData
         d.Beds = [.. Enumerable.Range(1, 6).Select(i => new Bed(Guid.Parse($"c0000000-0000-0000-0000-{i:D12}"), "General ward", $"G-{i:D2}", "General", i == 1 ? "Occupied" : i == 5 ? "Cleaning" : "Available", "")),
             new(Guid.Parse("c0000000-0000-0000-0000-000000000007"), "ICU", "ICU-01", "ICU", "Occupied", ""), new(Guid.Parse("c0000000-0000-0000-0000-000000000008"), "ICU", "ICU-02", "ICU", "Available", ""),
             new(Guid.Parse("c0000000-0000-0000-0000-000000000009"), "Private", "P-01", "Private", "Available", ""), new(Guid.Parse("c0000000-0000-0000-0000-000000000010"), "Private", "P-02", "Private", "Maintenance", "Preventive maintenance")];
-        d.Admissions = [new(Guid.Parse("c1000000-0000-0000-0000-000000000001"), $"ADM-{now.Year}-0001", d.Patients[2].Id, d.Beds[0].Id, SeedIds.Doctor, "Active", "Persistent knee pain requiring observation and analgesia review", now.AddHours(-6), null, "", "", ""),
+        d.Admissions = [new(Guid.Parse("c1000000-0000-0000-0000-000000000001"), $"ADM-{now.Year}-0001", d.Patients[2].Id, d.Beds[0].Id, SeedIds.Doctor, "Active", "Persistent knee pain requiring observation and analgesia review", now.AddHours(-6), null, "", "", "") with { AdmissionType = "Elective", DiagnosisOnAdmission = "Osteoarthritis of the right knee with effusion", AttendantName = "Priya Mehta", AttendantPhone = "+91 9988776655", PayerType = "Self", ExpectedDischargeDate = DateOnly.FromDateTime(today.AddDays(2)) },
             new(Guid.Parse("c1000000-0000-0000-0000-000000000002"), $"ADM-{now.Year}-0002", d.Patients[5].Id, d.Beds[6].Id, d.Doctors[1].Id, "Active", "Skin irritation with systemic symptoms requiring inpatient review", now.AddHours(-3), null, "", "", "")];
         d.BedEvents = d.Admissions.Select(a => new BedEvent(Guid.NewGuid(), a.Id, a.BedId, "Admitted", "Available", "Occupied", SeedIds.Admin, a.AdmittedAt, a.Reason)).ToList();
         d.NursingNotes = [new(Guid.NewGuid(), d.Admissions[0].Id, d.Admissions[0].PatientId, "Assessment", "Patient comfortable, pain reviewed, fall precautions in place.", new(36.8m, 78, 124, 80, 70, 98), 800, 650, 3, "Low", nurseId, now.AddHours(-2)),
@@ -176,8 +199,8 @@ public sealed class DemoData
             new(Guid.Parse("d2000000-0000-0000-0000-000000000001"), d.RadiologyOrders[0].Id, 1, "Joint spaces are preserved. No fracture or dislocation. Small suprapatellar effusion.", "Small left knee effusion without fracture.", false, "Authorized", radiologistId, now.AddHours(-23), radiologist2Id, now.AddHours(-22), "synthetic-seed-hash-ris-1"),
             new(Guid.Parse("d2000000-0000-0000-0000-000000000002"), d.RadiologyOrders[1].Id, 1, "Mild hydronephrosis on the right with a 6 mm calculus in the proximal ureter.", "Right ureteric calculus with mild hydronephrosis.", true, "Reported", radiologistId, now.AddHours(-5), null, null, null)];
         d.EmergencyRegistrations = [
-            new(Guid.Parse("d3000000-0000-0000-0000-000000000001"), $"ER-{now.Year}-0001", d.Patients[4].Id, d.Patients[4].FullName, d.Patients[4].Sex, d.Patients[4].DateOfBirth, "Ambulance", "Open", now.AddMinutes(-75), nurseId),
-            new(Guid.Parse("d3000000-0000-0000-0000-000000000002"), $"ER-{now.Year}-0002", null, "Unknown male", "Unknown", null, "Police", "Dispositioned", now.AddHours(-5), SeedIds.Admin)];
+            new(Guid.Parse("d3000000-0000-0000-0000-000000000001"), $"ER-{now.Year}-0001", d.Patients[4].Id, d.Patients[4].FullName, d.Patients[4].Sex, d.Patients[4].DateOfBirth, "Ambulance", "Open", now.AddMinutes(-75), nurseId) with { ReferringFacility = "City Nursing Home, Karol Bagh", BroughtBy = "Family · Mrs. Singh", MedicoLegalCase = false },
+            new(Guid.Parse("d3000000-0000-0000-0000-000000000002"), $"ER-{now.Year}-0002", null, "Unknown male", "Unknown", null, "Police", "Dispositioned", now.AddHours(-5), SeedIds.Admin) with { ReferringFacility = "", BroughtBy = "Police escort · PCR van 42", MedicoLegalCase = true }];
         d.TriageAssessments = [
             new(Guid.NewGuid(), d.EmergencyRegistrations[0].Id, "Red", "Chest pain with breathlessness and sweating.", new(37.2m, 118, 92, 58, 82, 91), nurseId, now.AddMinutes(-70)),
             new(Guid.NewGuid(), d.EmergencyRegistrations[1].Id, "Yellow", "Head injury after a road accident; conscious and oriented.", new(36.9m, 96, 128, 80, 76, 97), nurseId, now.AddHours(-4.5))];

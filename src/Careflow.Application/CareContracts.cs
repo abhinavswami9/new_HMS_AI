@@ -1,7 +1,16 @@
 using Careflow.Domain;
 namespace Careflow.Application;
 
-public sealed record AdmissionInput(Guid PatientId, Guid BedId, Guid DoctorId, string Reason);
+public sealed record AdmissionInput(Guid PatientId, Guid BedId, Guid DoctorId, string Reason)
+{
+    public string AdmissionType { get; init; } = "Elective";
+    public string DiagnosisOnAdmission { get; init; } = "";
+    public string AttendantName { get; init; } = "";
+    public string AttendantPhone { get; init; } = "";
+    public string PayerType { get; init; } = "Self";
+    public Guid? CoverageId { get; init; }
+    public DateOnly? ExpectedDischargeDate { get; init; }
+};
 public sealed record TransferInput(Guid BedId, long Version, string Reason);
 public sealed record DischargeInput(long Version, string Summary, string Diagnosis, string Instructions);
 public sealed record BedStatusInput(string Status, string Reason, long Version);

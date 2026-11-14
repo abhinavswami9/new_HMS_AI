@@ -30,6 +30,26 @@ await Test("duplicate registration requires explicit review", async () => { awai
 await Test("RBAC denies nurse registration and doctor billing", async () => { await Throws("forbidden", () => service.Register(Scope.For(nurse, clock.UtcNow), input, ct)); await Throws("forbidden", () => service.CreateInvoice(clinical, new InvoiceInput(registered!.Id, [new(data.Services[0].Id, 1)]), ct)); });
 await Test("future DOB and invalid vital ranges are rejected", async () => { await Throws("patient.dob", () => service.Register(scope, input with { DateOfBirth = scope.Today.AddDays(1) }, ct)); await Throws("vitals.range", () => Task.Run(() => ClinicalRules.ValidateVitals(new(null, null, null, null, null, 101)))); });
 await Test("patient contact validation applies to registration and updates", async () => { await Throws("patient.fields", () => service.Register(scope, input with { Email = "not-an-email" }, ct)); await Throws("patient.fields", () => service.Register(scope, input with { BloodGroup = "INVALID" }, ct)); await Throws("patient.fields", () => service.UpdatePatient(scope, registered!.Id, input with { Email = "not-an-email" }, registered.Version, ct)); });
+await Test("demographics and ABHA identity linkage are validated and persisted", async () => {
+    await Throws("patient.fields", () => service.Register(scope, input with { Phone = "+91 9000000311", AbhaNumber = "123" }, ct));
+    await Throws("patient.abha", () => service.Register(scope, input with { Phone = "+91 9000000311", AadhaarNumber = "781234567890" }, ct));
+    await Throws("patient.fields", () => service.Register(scope, input with { Phone = "+91 9000000311", Pincode = "1100" }, ct));
+    var rich = await service.Register(scope, input with
+    {
+        Phone = "+91 9000000311", FirstName = "Deepa", LastName = "Iyer", Title = "Mrs", MiddleName = "Raj", MaritalStatus = "Married",
+        FatherName = "Raj Iyer", MotherName = "Sita Iyer", SpouseName = "Arun Iyer", GuardianName = "", GuardianRelation = "",
+        Religion = "Hindu", Occupation = "Teacher", Education = "Post-graduate", Language = "Hindi", Nationality = "Indian",
+        AadhaarNumber = "781234567890", AbhaNumber = "12345678901234", AbhaAddress = "deepa.iyer@abdm",
+        City = "Pune", State = "Maharashtra", Pincode = "411001", Country = "India"
+    }, ct);
+    Assert(rich.AbhaNumber == "12345678901234" && rich.AbhaAddress == "deepa.iyer@abdm" && rich.City == "Pune" && rich.Title == "Mrs" && rich.FatherName == "Raj Iyer");
+    var updated = await service.UpdatePatient(scope, rich.Id, input with
+    {
+        Phone = "+91 9000000311", FirstName = "Deepa", LastName = "Iyer", Title = "Mrs", MaritalStatus = "Married",
+        Occupation = "School Principal", AbhaNumber = "12345678901234", AadhaarNumber = "781234567890", AbhaAddress = "deepa.iyer@abdm", Pincode = "411001"
+    }, rich.Version, ct);
+    Assert(updated.Occupation == "School Principal" && updated.AbhaNumber == "12345678901234");
+});
 await Test("patient updates cannot silently adopt another patient identity", async () => { var other = data.Patients.First(p => p.Id != registered!.Id); await Throws("patient.duplicate", () => service.UpdatePatient(scope, registered!.Id, input with { Phone = other.Phone, FirstName = other.FirstName, LastName = other.LastName, DateOfBirth = other.DateOfBirth }, registered.Version, ct)); });
 await Test("booking rejects overlapping practitioner slots", async () => { booked = await service.Book(scope, new BookingInput(registered!.Id, SeedIds.Doctor, clock.UtcNow.AddDays(1), 30), ct); await Throws("booking.conflict", () => service.Book(scope, new BookingInput(data.Patients[2].Id, SeedIds.Doctor, clock.UtcNow.AddDays(1).AddMinutes(15)), ct)); });
 await Test("check-in allocates a token and opens an assigned encounter", async () => { booked = await service.Transition(scope, booked!.Id, "check-in", booked.Version, "", ct); Assert(booked.Token.HasValue); encounter = await service.StartEncounter(clinical, booked.Id, ct); Assert(encounter!.PatientId == registered!.Id); Assert(encounter!.Status == "Draft"); });
@@ -52,6 +72,16 @@ await Test("patient chart access is audited and clinical visibility is scoped", 
 await Test("inpatient module cannot be disabled with active admissions", async () => { await Throws("module.dependency", () => service.SetModule(scope, "ipd", false, "Attempted unsafe module disable.", ct)); });
 Patient? ipdPatient = null; Admission? admission = null; Bed? admissionBed = null;
 await Test("admission allocates a bed and rejects double occupancy", async () => { ipdPatient = await service.Register(scope, input with { Phone = "+91 9000000199", FirstName = "IPD", LastName = "Synthetic" }, ct); admissionBed = data.Beds.First(b => b.Status == "Available"); admission = await inpatient.Admit(scope, new AdmissionInput(ipdPatient!.Id, admissionBed.Id, SeedIds.Doctor, "Synthetic inpatient observation"), ct); Assert(data.Beds.First(b => b.Id == admissionBed.Id).Status == "Occupied"); await Throws("admission.active", () => inpatient.Admit(scope, new AdmissionInput(ipdPatient.Id, data.Beds.First(b => b.Status == "Available").Id, SeedIds.Doctor, "Duplicate admission attempt"), ct)); await Throws("bed.occupied", () => inpatient.Admit(scope, new AdmissionInput(data.Patients[8].Id, admissionBed.Id, SeedIds.Doctor, "Occupied bed attempt"), ct)); });
+await Test("admission registration captures clinical, attendant and payer details", async () => {
+    var deepPatient = await service.Register(scope, input with { Phone = "+91 9000000422", FirstName = "Deepak", LastName = "Rao" }, ct);
+    var deepBed = data.Beds.First(b => b.Status == "Available");
+    var deepAdmission = await inpatient.Admit(scope, new AdmissionInput(deepPatient.Id, deepBed.Id, SeedIds.Doctor, "Observation for uncontrolled hyperglycaemia")
+    {
+        AdmissionType = "Emergency", DiagnosisOnAdmission = "Diabetic ketoacidosis, resolving", AttendantName = "Anita Rao",
+        AttendantPhone = "+91 9800000001", PayerType = "Self", ExpectedDischargeDate = scope.Today.AddDays(3)
+    }, ct);
+    Assert(deepAdmission.AdmissionType == "Emergency" && deepAdmission.DiagnosisOnAdmission == "Diabetic ketoacidosis, resolving" && deepAdmission.AttendantName == "Anita Rao" && deepAdmission.ExpectedDischargeDate == scope.Today.AddDays(3));
+});
 await Test("transfer releases the old bed for cleaning and occupies the target", async () => { var target = data.Beds.First(b => b.Status == "Available"); admission = await inpatient.Transfer(scope, admission!.Id, new TransferInput(target.Id, admission.Version, "Synthetic transfer for observation"), ct); Assert(admission.BedId == target.Id); Assert(data.Beds.First(b => b.Id == admissionBed!.Id).Status == "Cleaning"); Assert(data.Beds.First(b => b.Id == target.Id).Status == "Occupied"); });
 await Test("nursing assessment creates audited note and escalation alert", async () => { var note = await inpatient.AddNursingNote(nurseScope, new NursingNoteInput(admission!.Id, "Assessment", "Synthetic deterioration review", new(39.6m, 140, 85, 60, 70, 88), 500, 400, 8, "High"), ct); Assert(data.CriticalAlerts.Any(a => a.EntityId == note.Id && a.Status == "Open")); Assert(data.Audit.Any(a => a.EntityId == note.Id)); });
 MedicationOrder? medOrder = null;

@@ -2,7 +2,16 @@ namespace Careflow.Domain;
 
 public sealed record Bed(Guid Id, string Ward, string Number, string Kind, string Status, string Notes, long Version = 1);
 public sealed record Admission(Guid Id, string Number, Guid PatientId, Guid BedId, Guid DoctorId, string Status, string Reason,
-    DateTimeOffset AdmittedAt, DateTimeOffset? DischargedAt, string DischargeSummary, string DischargeDiagnosis, string DischargeInstructions, long Version = 1);
+    DateTimeOffset AdmittedAt, DateTimeOffset? DischargedAt, string DischargeSummary, string DischargeDiagnosis, string DischargeInstructions, long Version = 1)
+{
+    public string AdmissionType { get; init; } = "Elective";
+    public string DiagnosisOnAdmission { get; init; } = "";
+    public string AttendantName { get; init; } = "";
+    public string AttendantPhone { get; init; } = "";
+    public string PayerType { get; init; } = "Self";
+    public Guid? CoverageId { get; init; }
+    public DateOnly? ExpectedDischargeDate { get; init; }
+};
 public sealed record BedEvent(Guid Id, Guid? AdmissionId, Guid BedId, string Action, string FromStatus, string ToStatus, Guid ActorId, DateTimeOffset At, string Reason);
 public sealed record NursingNote(Guid Id, Guid AdmissionId, Guid PatientId, string Kind, string Text, VitalSet Vitals,
     int? IntakeMl, int? OutputMl, int? PainScore, string FallRisk, Guid CreatedBy, DateTimeOffset CreatedAt);

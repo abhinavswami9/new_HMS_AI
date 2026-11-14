@@ -172,6 +172,9 @@ export function Emergency() {
                 sex: f.get("sex"),
                 dateOfBirth: f.get("dateOfBirth") || null,
                 arrivalMode: f.get("arrivalMode"),
+                referringFacility: f.get("referringFacility") || "",
+                broughtBy: f.get("broughtBy") || "",
+                medicoLegalCase: f.get("medicoLegalCase") === "on",
               },
               "Episode registered",
             );
@@ -212,6 +215,20 @@ export function Emergency() {
               </select>
             </Field>
           </div>
+          <div className="grid-2">
+            <Field label="Referring facility">
+              <input name="referringFacility" maxLength={200} placeholder="If referred or transferred" />
+            </Field>
+            <Field label="Brought by">
+              <input name="broughtBy" maxLength={120} placeholder="Family / police / ambulance crew" />
+            </Field>
+          </div>
+          <label className="field">
+            <span>
+              <input type="checkbox" name="medicoLegalCase" /> Medico-legal
+              case (MLC)
+            </span>
+          </label>
           <Submit label="Register episode" />
         </form>
       </Modal>

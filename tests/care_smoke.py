@@ -27,8 +27,9 @@ status, patient = call('POST', '/patients', {'firstName': 'Care', 'lastName': f'
 check('patient registered for care workflow', status == 200)
 _, workspace = call('GET', '/workspace'); care = workspace['workspace']['care']
 bed = next(b for b in care['beds'] if b['status'] == 'Available')
-status, admission = call('POST', '/ipd/admissions', {'patientId': patient['id'], 'bedId': bed['id'], 'doctorId': workspace['workspace']['doctors'][0]['id'], 'reason': 'Synthetic care smoke admission'})
+status, admission = call('POST', '/ipd/admissions', {'patientId': patient['id'], 'bedId': bed['id'], 'doctorId': workspace['workspace']['doctors'][0]['id'], 'reason': 'Synthetic care smoke admission', 'admissionType': 'Emergency', 'diagnosisOnAdmission': 'Synthetic dehydration', 'attendantName': 'Smoke Attendant', 'attendantPhone': '+91 9000000099', 'payerType': 'Self', 'expectedDischargeDate': '2027-01-15'})
 check('admission occupies bed', status == 200 and admission['status'] == 'Active')
+check('admission clinical and payer details are captured', admission['admissionType'] == 'Emergency' and admission['diagnosisOnAdmission'] == 'Synthetic dehydration' and admission['attendantName'] == 'Smoke Attendant')
 check('occupied bed cannot be reused', call('POST', '/ipd/admissions', {'patientId': workspace['workspace']['patients'][0]['id'], 'bedId': bed['id'], 'doctorId': workspace['workspace']['doctors'][0]['id'], 'reason': 'Duplicate bed attempt'})[0] == 409)
 status, note = call('POST', '/nursing/notes', {'admissionId': admission['id'], 'kind': 'Assessment', 'text': 'Synthetic nursing escalation', 'vitals': {'temperatureC': None, 'pulse': None, 'systolic': None, 'diastolic': None, 'weightKg': None, 'spo2': 88}, 'intakeMl': None, 'outputMl': None, 'painScore': 8, 'fallRisk': 'High'}, role='Nurse')
 check('nursing note creates escalation', status == 200)

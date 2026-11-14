@@ -148,7 +148,7 @@ export function Modules() {
                   <Icon size={22} />
                 </span>
                 <span className={`badge ${m.enabled ? "green" : "gray"}`}>
-                  {m.enabled ? "Preview enabled" : `Phase ${m.phase} · planned`}
+                  {m.enabled ? "Preview enabled" : "Planned"}
                 </span>
               </div>
               <h3>{m.name}</h3>
@@ -164,7 +164,7 @@ export function Modules() {
       {selected && (
         <Modal
           title={selected.name}
-          subtitle={`Phase ${selected.phase} · ${selected.enabled ? "Initial workflow available in preview" : "Architecture specified — implementation planned"}`}
+          subtitle={`${selected.enabled ? "Initial workflow available in preview" : "Architecture specified — implementation planned"}`}
           onClose={() => setSelected(null)}
         >
           <div className="modal-body">

@@ -323,6 +323,13 @@ function AdmitModal({ onClose }: { onClose: () => void }) {
     bedId: "",
     doctorId: data.doctors[0]?.id || "",
     reason: "",
+    admissionType: "Elective",
+    diagnosisOnAdmission: "",
+    attendantName: "",
+    attendantPhone: "",
+    payerType: "Self",
+    coverageId: "",
+    expectedDischargeDate: "",
   });
   return (
     <Modal
@@ -337,7 +344,11 @@ function AdmitModal({ onClose }: { onClose: () => void }) {
           setBusy(true);
           setError("");
           try {
-            await api("/ipd/admissions", "POST", form);
+            await api("/ipd/admissions", "POST", {
+              ...form,
+              coverageId: form.coverageId || null,
+              expectedDischargeDate: form.expectedDischargeDate || null,
+            });
             await refresh();
             notify("Patient admitted successfully");
             onClose();
@@ -407,6 +418,73 @@ function AdmitModal({ onClose }: { onClose: () => void }) {
                 />
               </Field>
             </div>
+            <Field label="Admission type">
+              <select
+                value={form.admissionType}
+                onChange={(e) => setForm({ ...form, admissionType: e.target.value })}
+              >
+                {["Elective", "Emergency", "Transfer", "Obstetric"].map((x) => (
+                  <option key={x}>{x}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Diagnosis on admission">
+              <input
+                maxLength={500}
+                value={form.diagnosisOnAdmission}
+                onChange={(e) => setForm({ ...form, diagnosisOnAdmission: e.target.value })}
+                placeholder="Working diagnosis at admission"
+              />
+            </Field>
+            <Field label="Attendant / bystander name">
+              <input
+                maxLength={120}
+                value={form.attendantName}
+                onChange={(e) => setForm({ ...form, attendantName: e.target.value })}
+              />
+            </Field>
+            <Field label="Attendant phone">
+              <input
+                type="tel"
+                maxLength={30}
+                value={form.attendantPhone}
+                onChange={(e) => setForm({ ...form, attendantPhone: e.target.value })}
+              />
+            </Field>
+            <Field label="Expected discharge">
+              <input
+                type="date"
+                value={form.expectedDischargeDate}
+                onChange={(e) => setForm({ ...form, expectedDischargeDate: e.target.value })}
+              />
+            </Field>
+            <Field label="Payer type">
+              <select
+                value={form.payerType}
+                onChange={(e) => setForm({ ...form, payerType: e.target.value, coverageId: "" })}
+              >
+                {["Self", "Insurance", "Corporate"].map((x) => (
+                  <option key={x}>{x}</option>
+                ))}
+              </select>
+            </Field>
+            {form.payerType === "Insurance" ? (
+              <Field label="Linked coverage">
+                <select
+                  value={form.coverageId}
+                  onChange={(e) => setForm({ ...form, coverageId: e.target.value })}
+                >
+                  <option value="">Select registered coverage</option>
+                  {data.care.coverages
+                    .filter((c) => c.patientId === form.patientId && c.status === "Active")
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.number} · policy {c.policyNumber}
+                      </option>
+                    ))}
+                </select>
+              </Field>
+            ) : null}
           </div>
           {error && <ErrorNote>{error}</ErrorNote>}
         </div>
