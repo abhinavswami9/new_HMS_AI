@@ -53,7 +53,29 @@ public sealed partial class SqlHospitalStore
             TriageAssessments = triage.Take(limit).ToList(),
             OtBookings = otBookings.Take(limit).ToList(),
             BloodUnits = bloodUnits.Take(limit).ToList(),
-            BloodIssues = bloodIssues.Take(limit).ToList()
+            BloodIssues = bloodIssues.Take(limit).ToList(),
+            Payers = p.Contains(Permissions.InsuranceRead) ? await Query("SELECT Id,Code,Name,Contact,Active FROM insurance.Payers WHERE HospitalId=@h ORDER BY Name", MapPayer, H) : [],
+            Plans = p.Contains(Permissions.InsuranceRead) ? await Query("SELECT Id,PayerId,Code,Name,PolicyType,SumInsuredLimit FROM insurance.Plans WHERE HospitalId=@h", MapPlan, H) : [],
+            Coverages = p.Contains(Permissions.InsuranceRead) ? await Query("SELECT Id,Number,PatientId,PlanId,PolicyNumber,MemberId,ValidFromDate,ValidToDate,SumInsured,Deductible,Status,Version FROM insurance.Coverages WHERE HospitalId=@h ORDER BY ValidToDate DESC", MapCoverage, H) : [],
+            Preauthorizations = p.Contains(Permissions.InsuranceRead) ? await Query("SELECT Id,Number,CoverageId,PatientId,DiagnosisCode,ProcedureCode,RequestedAmount,Status,ValidFromDate,ValidToDate,ApprovedAmount,ResponseNote,RespondedBy,RespondedAtUtc,RequestedBy,RequestedAtUtc,Version FROM insurance.Preauthorizations WHERE HospitalId=@h ORDER BY RequestedAtUtc DESC", MapPreauth, H) : [],
+            Claims = p.Contains(Permissions.InsuranceRead) ? await Query("SELECT Id,Number,PatientId,CoverageId,InvoiceId,AdmissionId,DiagnosisCode,TotalAmount,ApprovedAmount,PatientLiability,Status,QueryNote,ResponseNote,RejectionReason,SubmittedBy,SubmittedAtUtc,CreatedBy,CreatedAtUtc,Version FROM insurance.Claims WHERE HospitalId=@h ORDER BY CreatedAtUtc DESC", MapClaim, H) : [],
+            ClaimLines = p.Contains(Permissions.InsuranceRead) ? await Query("SELECT Id,ClaimId,ServiceCode,Description,Quantity,UnitPrice,Amount,ApprovedAmount FROM insurance.ClaimLines WHERE HospitalId=@h", MapClaimLine, H) : [],
+            Settlements = p.Contains(Permissions.InsuranceRead) ? await Query("SELECT Id,Number,ClaimId,Amount,Mode,Reference,SettledAtUtc,SettledBy FROM insurance.Settlements WHERE HospitalId=@h ORDER BY SettledAtUtc DESC", MapSettlement, H) : [],
+            IncentiveRules = p.Contains(Permissions.IncentiveRead) ? await Query("SELECT Id,Name,ScopeKind,DoctorId,Basis,Mode,RuleValue,EffectiveFromDate,EffectiveToDate,Status,CreatedBy,Version FROM incentive.Rules WHERE HospitalId=@h", MapRule, H) : [],
+            IncentiveBatches = p.Contains(Permissions.IncentiveRead) ? await Query("SELECT Id,Number,PeriodStartDate,PeriodEndDate,Status,TotalAmount,CalculatedBy,CalculatedAtUtc,ApprovedBy,ApprovedAtUtc,RecalculationReason,Version FROM incentive.Batches WHERE HospitalId=@h", MapIncentiveBatch, H) : [],
+            IncentiveLines = p.Contains(Permissions.IncentiveRead) ? await Query("SELECT Id,BatchId,DoctorId,RuleId,BasisLabel,BasisAmount,IncentiveAmount,Snapshot FROM incentive.Lines WHERE HospitalId=@h", MapLine, H) : [],
+            IncentivePayments = p.Contains(Permissions.IncentiveRead) ? await Query("SELECT Id,BatchId,Amount,Mode,Reference,PaidBy,PaidAtUtc FROM incentive.Payments WHERE HospitalId=@h", MapIncentivePayment, H) : [],
+            TeleSessions = p.Contains(Permissions.TeleRead) ? await Query("SELECT Id,Number,AppointmentId,PatientId,DoctorId,Status,ScheduledAtUtc,ConsentObtained,StartedAtUtc,EndedAtUtc,EndNote,EmergencyAdvice,Version FROM tele.Sessions WHERE HospitalId=@h ORDER BY ScheduledAtUtc DESC", MapTeleSession, H) : [],
+            InventoryItems = p.Contains(Permissions.InventoryRead) ? await Query("SELECT Id,Code,Name,Category,Uom,ReorderLevel,UnitCost,Active FROM inventory.Items WHERE HospitalId=@h", MapItem, H) : [],
+            InventoryStores = p.Contains(Permissions.InventoryRead) ? await Query("SELECT Id,Code,Name,Kind FROM inventory.Stores WHERE HospitalId=@h", MapStore, H) : [],
+            Vendors = p.Contains(Permissions.InventoryRead) ? await Query("SELECT Id,Code,Name,Authorized FROM inventory.Vendors WHERE HospitalId=@h", MapVendor, H) : [],
+            InventoryBatches = p.Contains(Permissions.InventoryRead) ? await Query("SELECT Id,BatchNumber,ItemId,StoreId,ExpiryDate,Quantity,UnitCost,Version FROM inventory.Batches WHERE HospitalId=@h ORDER BY ExpiryDate", MapBatchStock, H) : [],
+            InventoryIndents = p.Contains(Permissions.InventoryRead) ? await Query("SELECT Id,Number,StoreId,ItemId,Quantity,Priority,Status,Reason,RaisedBy,RaisedAtUtc,ApprovedBy,ApprovedAtUtc,Version FROM inventory.Indents WHERE HospitalId=@h", MapIndent, H) : [],
+            PurchaseOrders = p.Contains(Permissions.InventoryRead) ? await Query("SELECT Id,Number,VendorId,ItemId,IndentId,Quantity,UnitCost,Status,RaisedBy,RaisedAtUtc,ReceivedBy,ReceivedAtUtc,Version FROM inventory.PurchaseOrders WHERE HospitalId=@h", MapPo, H) : [],
+            Transfers = p.Contains(Permissions.InventoryRead) ? await Query("SELECT Id,Number,FromStoreId,ToStoreId,ItemId,BatchId,Quantity,Status,Note,DispatchedBy,DispatchedAtUtc,ReceivedBy,ReceivedAtUtc,Version FROM inventory.Transfers WHERE HospitalId=@h", MapTransfer, H) : [],
+            CssdSets = p.Contains(Permissions.CssdRead) ? await Query("SELECT Id,Code,Name,Status,MissingCount,SterileExpiryUtc,LastCycleId,Version FROM cssd.Sets WHERE HospitalId=@h", MapSet, H) : [],
+            CssdCycles = p.Contains(Permissions.CssdRead) ? await Query("SELECT Id,Number,Method,Machine,TempC,DurationMin,Status,StartedAtUtc,EndedAtUtc,OperatorBy,Version FROM cssd.Cycles WHERE HospitalId=@h", MapCycle, H) : [],
+            CssdIssues = p.Contains(Permissions.CssdRead) ? await Query("SELECT Id,Number,SetId,BookingId,IssuedTo,Status,ReturnCondition,IssuedAtUtc,IssuedBy,ReturnedAtUtc,Version FROM cssd.Issues WHERE HospitalId=@h", MapCssdIssue, H) : []
         };
     }
     private async Task<List<ShiftHandover>> LoadHandoversAsync(int limit, CancellationToken ct)
@@ -138,7 +160,11 @@ public sealed partial class SqlHospitalStore
             RadiologyReports = radiologyReports.Take(limit).ToList(),
             EmergencyRegistrations = emergencyRegistrations.Take(limit).ToList(),
             OtBookings = otBookings.Take(limit).ToList(),
-            BloodIssues = bloodIssues.Take(limit).ToList()
+            BloodIssues = bloodIssues.Take(limit).ToList(),
+            Coverages = p.Contains(Permissions.InsuranceRead) ? await Query("SELECT Id,Number,PatientId,PlanId,PolicyNumber,MemberId,ValidFromDate,ValidToDate,SumInsured,Deductible,Status,Version FROM insurance.Coverages WHERE HospitalId=@h AND PatientId=@p", MapCoverage, H, ("p", patientId)) : [],
+            Preauthorizations = p.Contains(Permissions.InsuranceRead) ? await Query("SELECT Id,Number,CoverageId,PatientId,DiagnosisCode,ProcedureCode,RequestedAmount,Status,ValidFromDate,ValidToDate,ApprovedAmount,ResponseNote,RespondedBy,RespondedAtUtc,RequestedBy,RequestedAtUtc,Version FROM insurance.Preauthorizations WHERE HospitalId=@h AND PatientId=@p", MapPreauth, H, ("p", patientId)) : [],
+            Claims = p.Contains(Permissions.InsuranceRead) ? await Query("SELECT Id,Number,PatientId,CoverageId,InvoiceId,AdmissionId,DiagnosisCode,TotalAmount,ApprovedAmount,PatientLiability,Status,QueryNote,ResponseNote,RejectionReason,SubmittedBy,SubmittedAtUtc,CreatedBy,CreatedAtUtc,Version FROM insurance.Claims WHERE HospitalId=@h AND PatientId=@p", MapClaim, H, ("p", patientId)) : [],
+            TeleSessions = p.Contains(Permissions.TeleRead) ? await Query("SELECT Id,Number,AppointmentId,PatientId,DoctorId,Status,ScheduledAtUtc,ConsentObtained,StartedAtUtc,EndedAtUtc,EndNote,EmergencyAdvice,Version FROM tele.Sessions WHERE HospitalId=@h AND PatientId=@p", MapTeleSession, H, ("p", patientId)) : []
         };
     }
     private async Task<List<Dispense>> LoadPatientDispensesAsync(Guid patientId, int limit, CancellationToken ct)

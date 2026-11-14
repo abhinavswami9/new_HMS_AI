@@ -8,6 +8,12 @@ var doctor = new Principal(SeedIds.Doctor, "Test Doctor", "Doctor", SeedIds.Hosp
 var nurse = new Principal(Guid.NewGuid(), "Test Nurse", "Nurse", SeedIds.Hospital, SeedIds.Branch);
 var scope = Scope.For(admin, clock.UtcNow); var clinical = Scope.For(doctor, clock.UtcNow); var ct = CancellationToken.None; var passed = 0;
 var inpatient = new InpatientService(uow, clock); var pharmacy = new PharmacyService(uow, clock); var laboratory = new LaboratoryService(uow, clock);
+var insuranceSvc = new InsuranceService(uow, clock); var incentiveSvc = new IncentiveService(uow, clock); var teleSvc = new TelemedicineService(uow, clock);
+var inventorySvc = new InventoryService(uow, clock); var cssdSvc = new CssdService(uow, clock);
+var insuranceUser = data.Users.First(u => u.UserName == "insurance"); var insuranceScope = Scope.For(new Principal(insuranceUser.Id, insuranceUser.DisplayName, insuranceUser.Role, insuranceUser.HospitalId, insuranceUser.BranchId), clock.UtcNow);
+var accountantUser = data.Users.First(u => u.UserName == "account"); var accountantScope = Scope.For(new Principal(accountantUser.Id, accountantUser.DisplayName, accountantUser.Role, accountantUser.HospitalId, accountantUser.BranchId), clock.UtcNow);
+var storeUser = data.Users.First(u => u.UserName == "store"); var storeScope = Scope.For(new Principal(storeUser.Id, storeUser.DisplayName, storeUser.Role, storeUser.HospitalId, storeUser.BranchId), clock.UtcNow);
+var cssdUser = data.Users.First(u => u.UserName == "cssdtech"); var cssdScope = Scope.For(new Principal(cssdUser.Id, cssdUser.DisplayName, cssdUser.Role, cssdUser.HospitalId, cssdUser.BranchId), clock.UtcNow);
 var nurseUser = data.Users.First(u => u.UserName == "nurse"); var nurseScope = Scope.For(new Principal(nurseUser.Id, nurseUser.DisplayName, nurseUser.Role, nurseUser.HospitalId, nurseUser.BranchId), clock.UtcNow);
 var pharmacistUser = data.Users.First(u => u.UserName == "pharmacist"); var pharmacyScope = Scope.For(new Principal(pharmacistUser.Id, pharmacistUser.DisplayName, pharmacistUser.Role, pharmacistUser.HospitalId, pharmacistUser.BranchId), clock.UtcNow);
 var labTechUser = data.Users.First(u => u.UserName == "labtech"); var labScope = Scope.For(new Principal(labTechUser.Id, labTechUser.DisplayName, labTechUser.Role, labTechUser.HospitalId, labTechUser.BranchId), clock.UtcNow);
@@ -37,7 +43,7 @@ await Test("invoice prices are resolved server-side", async () => { invoice = aw
 await Test("overpayment is rejected without partial audit writes", async () => { var count = data.Audit.Count; await Throws("payment.overpayment", () => service.Pay(scope, invoice!.Id, new PaymentInput(invoice.Total + 1, "Cash", "TEST-1", invoice.Version), ct)); Assert(data.Audit.Count == count); });
 await Test("payment reference retries are idempotent", async () => { var payment = new PaymentInput(invoice!.Total, "Cash", "TEST-UNIQUE", invoice.Version); invoice = await service.Pay(scope, invoice.Id, payment, ct); Assert(invoice.Status == "Paid"); var count = data.Audit.Count; var retry = await service.Pay(scope, invoice.Id, payment, ct); Assert(retry.Payments.Count == 1 && data.Audit.Count == count); await Throws("payment.idempotency", () => service.Pay(scope, invoice.Id, payment with { Amount = 1 }, ct)); });
 await Test("module disabling blocks new work but retains records", async () => { await service.SetModule(scope, "billing", false, "Planned billing maintenance window.", ct); await Throws("module.disabled", () => service.CreateInvoice(scope, new InvoiceInput(registered!.Id, [new(data.Services[0].Id, 1)]), ct)); Assert(data.Invoices.Any(i => i.Id == invoice!.Id)); await service.SetModule(scope, "billing", true, "Maintenance completed and verified.", ct); });
-await Test("later-phase modules cannot be enabled by configuration", async () => { await Throws("module.unavailable", () => service.SetModule(scope, "insurance", true, "Attempted early activation.", ct)); });
+await Test("later-phase modules cannot be enabled by configuration", async () => { await Throws("module.unavailable", () => service.SetModule(scope, "quality", true, "Attempted early activation.", ct)); });
 await Test("failed login is retained and successful sessions are revocable", async () => { await Throws("auth.failed", () => service.Login(new LoginInput("admin", "incorrect"), SeedIds.Hospital, SeedIds.Branch, ct, "203.0.113.10")); Assert(data.Logins.Any(l => !l.Success && l.SourceIp == "203.0.113.10")); var auth = await service.Login(new LoginInput("admin", "Preview!2026"), SeedIds.Hospital, SeedIds.Branch, ct, "203.0.113.10"); Assert(await service.Authenticate(auth.Token, SeedIds.Hospital, SeedIds.Branch, ct) is not null); await service.Logout(auth.Token, SeedIds.Hospital, SeedIds.Branch, ct); Assert(await service.Authenticate(auth.Token, SeedIds.Hospital, SeedIds.Branch, ct) is null); Assert(data.Audit.Any(a => a.Action == "auth.logout")); });
 await Test("sessions are bound to the configured hospital branch", async () => { var auth = await service.Login(new LoginInput("admin", "Preview!2026"), SeedIds.Hospital, SeedIds.Branch, ct); Assert(await service.Authenticate(auth.Token, SeedIds.Hospital, Guid.NewGuid(), ct) is null); await Throws("auth.failed", () => service.Login(new LoginInput("admin", "Preview!2026"), SeedIds.Hospital, Guid.NewGuid(), ct)); await service.Logout(auth.Token, SeedIds.Hospital, SeedIds.Branch, ct); });
 await Test("patient chart access is audited and clinical visibility is scoped", async () => { var chart = await service.GetChart(clinical, registered!.Id, ct); Assert(chart.Encounters.All(e => e.DoctorId == doctor.Id)); Assert(chart.Invoices.Count == 0); Assert(data.Audit.Any(a => a.Action == "patient.chart.viewed" && a.ActorId == doctor.Id)); });
@@ -158,5 +164,218 @@ await Test("transfusion reactions raise blood alerts and closed issues are immut
     Assert(data.BloodUnits.First(u => u.UnitNumber == "SYN-B-04").Status == "Discarded");
 });
 
+// ── Phase 4: insurance, incentives, telemedicine, inventory, CSSD ─────────────
+Coverage? coverage = null; Preauthorization? preauth = null; Claim? claim = null; IncentiveRule? rule = null; Appointment? teleAppointment = null; InventoryIndent? Phase4Indent = null; PurchaseOrder? Phase4Order = null; SterilizerCycle? Phase4Cycle = null;
+await Test("coverage registration validates windows, limits and duplicates", async () =>
+{
+    var plan = data.InsurancePlans[0];
+    await Throws("insurance.reference", () => insuranceSvc.RegisterCoverage(scope, new CoverageInput(registered!.Id, Guid.NewGuid(), "POL-UNKNOWN-1", "MBR-0001", scope.Today.AddDays(-10), scope.Today.AddDays(300), 100000, 500), ct));
+    await Throws("insurance.coverage", () => insuranceSvc.RegisterCoverage(scope, new CoverageInput(registered!.Id, plan.Id, "POL-BAD-1", "MBR-0002", scope.Today, scope.Today.AddDays(-1), 100000, 500), ct));
+    await Throws("insurance.coverage", () => insuranceSvc.RegisterCoverage(scope, new CoverageInput(registered!.Id, plan.Id, "POL-BAD-2", "MBR-0003", scope.Today.AddDays(-10), scope.Today.AddDays(300), 100000, 100000), ct));
+    coverage = await insuranceSvc.RegisterCoverage(scope, new CoverageInput(registered!.Id, plan.Id, "POL-TEST-9001", "MBR-9001", scope.Today.AddDays(-30), scope.Today.AddDays(300), 200000, 1000), ct);
+    Assert(coverage.Number.StartsWith("COV-") && coverage.Status == "Active");
+    await Throws("insurance.duplicate", () => insuranceSvc.RegisterCoverage(scope, new CoverageInput(registered!.Id, plan.Id, "POL-TEST-9001", "MBR-9002", scope.Today.AddDays(-30), scope.Today.AddDays(300), 200000, 1000), ct));
+});
+await Test("eligibility checks are audited without mutating the coverage", async () =>
+{
+    var before = coverage!.Version;
+    var checkedCoverage = await insuranceSvc.VerifyCoverage(scope, coverage!.Id, ct);
+    Assert(checkedCoverage.Version == before && data.Audit.Any(a => a.Action == "insurance.eligibility.checked"));
+});
+await Test("preauthorization request and payer response follow decision rules", async () =>
+{
+    preauth = await insuranceSvc.RequestPreauth(scope, new PreauthInput(coverage!.Id, registered!.Id, "M54.5", "PROC-100", 5000, scope.Today.AddDays(30)), ct);
+    await Throws("insurance.preauth", () => insuranceSvc.RespondPreauth(scope, preauth!.Id, new PreauthRespondInput("Approved", 6000, "Above requested amount.", preauth!.Version), ct));
+    await Throws("insurance.preauth", () => insuranceSvc.RespondPreauth(scope, preauth!.Id, new PreauthRespondInput("Maybe", null, "Undecided response.", preauth!.Version), ct));
+    preauth = await insuranceSvc.RespondPreauth(scope, preauth!.Id, new PreauthRespondInput("Approved", 4000, "Approved with panel tariff cap.", preauth!.Version), ct);
+    Assert(preauth.Status == "Approved" && preauth.ApprovedAmount == 4000);
+    await Throws("insurance.state", () => insuranceSvc.RespondPreauth(scope, preauth!.Id, new PreauthRespondInput("Rejected", null, "Reversing the decision.", preauth!.Version), ct));
+});
+await Test("claim lines recalculate totals and enforce coverage limits", async () =>
+{
+    await Throws("insurance.lines", () => insuranceSvc.CreateClaim(scope, new ClaimInput(registered!.Id, coverage!.Id, null, null, "M54.5", [new("LAB-1", "Panel", 0, 100)]), ct));
+    await Throws("insurance.eligibility", () => insuranceSvc.CreateClaim(scope, new ClaimInput(registered!.Id, coverage!.Id, null, null, "M54.5", [new("SURG-1", "Costly procedure", 1, 250000)]), ct));
+    await Throws("forbidden", () => insuranceSvc.CreateClaim(clinical, new ClaimInput(registered!.Id, coverage!.Id, null, null, "M54.5", [new("LAB-1", "Panel", 1, 100)]), ct));
+    claim = await insuranceSvc.CreateClaim(scope, new ClaimInput(registered!.Id, coverage!.Id, null, null, "M54.5", [new("LAB-1", "Metabolic panel", 2, 250), new("CON-1", "Consultation", 1, 100)]), ct);
+    Assert(claim.TotalAmount == 600 && claim.Status == "Draft");
+});
+await Test("claim lifecycle enforces transitions, settlement caps and references", async () =>
+{
+    claim = await insuranceSvc.SubmitClaim(scope, claim!.Id, new VersionInput(claim!.Version), ct);
+    await Throws("insurance.state", () => insuranceSvc.SubmitClaim(scope, claim!.Id, new VersionInput(claim!.Version), ct));
+    claim = await insuranceSvc.RaiseQuery(scope, claim!.Id, new ClaimQueryInput("Please share the itemised investigation report for adjudication."), ct);
+    Assert(claim.Status == "Queried");
+    claim = await insuranceSvc.RespondQuery(scope, claim!.Id, new ClaimRespondInput("Itemised report attached to the claim communication.", claim!.Version), ct);
+    claim = await insuranceSvc.DecideClaim(scope, claim!.Id, new ClaimDecisionInput("Approved", 400, "Approved as per policy schedule.", claim!.Version), ct);
+    Assert(claim.PatientLiability == 200);
+    await Throws("insurance.settlement", () => insuranceSvc.SettleClaim(scope, claim!.Id, new SettlementInput(500, "Bank transfer", "STL-OVER-1", claim!.Version), ct));
+    await insuranceSvc.SettleClaim(scope, claim!.Id, new SettlementInput(200, "Bank transfer", "STL-TEST-1", claim!.Version), ct);
+    await Throws("insurance.duplicate", () => insuranceSvc.SettleClaim(scope, claim!.Id, new SettlementInput(100, "Bank transfer", "STL-TEST-1", claim!.Version), ct));
+    await insuranceSvc.SettleClaim(scope, claim!.Id, new SettlementInput(200, "Cheque", "STL-TEST-2", claim!.Version), ct);
+    Assert(data.Claims.First(c => c.Id == claim!.Id).Status == "Settled");
+});
+await Test("incentive rules enforce basis, mode, scope and overlap", async () =>
+{
+    await Throws("incentive.fields", () => incentiveSvc.CreateRule(scope, new IncentiveRuleInput("Broken percent", "All", null, "Consultation", "Percent", 5, scope.Today.AddDays(-60), null), ct));
+    await Throws("incentive.fields", () => incentiveSvc.CreateRule(scope, new IncentiveRuleInput("Bad scope", "Department", null, "Revenue", "Percent", 5, scope.Today.AddDays(-60), null), ct));
+    rule = await incentiveSvc.CreateRule(scope, new IncentiveRuleInput("Revenue share", "Doctor", SeedIds.Doctor, "Revenue", "Percent", 5, scope.Today.AddDays(-60), null), ct);
+    Assert(rule.Status == "Draft");
+    await Throws("incentive.overlap", () => incentiveSvc.CreateRule(scope, new IncentiveRuleInput("Overlapping share", "Doctor", SeedIds.Doctor, "Revenue", "Percent", 3, scope.Today.AddDays(-30), null), ct));
+    await Throws("incentive.state", () => incentiveSvc.SetRuleStatus(scope, rule!.Id, "Retired", new VersionInput(rule!.Version), ct));
+    rule = await incentiveSvc.SetRuleStatus(scope, rule!.Id, "Active", new VersionInput(rule!.Version), ct);
+    var consultRule = await incentiveSvc.CreateRule(scope, new IncentiveRuleInput("Consultation flat", "All", null, "Consultation", "Fixed", 150, scope.Today.AddDays(-60), null), ct);
+    consultRule = await incentiveSvc.SetRuleStatus(scope, consultRule.Id, "Active", new VersionInput(consultRule.Version), ct);
+    Assert(consultRule.Status == "Active");
+});
+await Test("incentive batches require closed periods, separation and bounded payments", async () =>
+{
+    await Throws("incentive.period", () => incentiveSvc.Calculate(scope, new IncentiveBatchInput(scope.Today.AddDays(-30), scope.Today), ct));
+    var fixedNow = clock.UtcNow; clock.UtcNow = fixedNow.AddDays(1);
+    var tomorrow = Scope.For(admin, clock.UtcNow);
+    var batch = await incentiveSvc.Calculate(tomorrow, new IncentiveBatchInput(new DateOnly(2026, 11, 1), new DateOnly(2026, 11, 13)), ct);
+    Assert(batch.Status == "Calculated" && batch.TotalAmount > 0);
+    await Throws("incentive.period", () => incentiveSvc.Calculate(tomorrow, new IncentiveBatchInput(new DateOnly(2026, 11, 1), new DateOnly(2026, 11, 13)), ct));
+    var lines = await incentiveSvc.ListLines(tomorrow, batch.Id, ct);
+    Assert(lines.Any(l => l.BasisLabel.StartsWith("Revenue:")));
+    batch = await incentiveSvc.Recalculate(tomorrow, batch.Id, new BatchRecalcInput("Recalculated after payer reconciliation.", batch.Version), ct);
+    await Throws("incentive.separation", () => incentiveSvc.Approve(tomorrow, batch.Id, new BatchApproveInput("Self approval attempt.", batch.Version), ct));
+    batch = await incentiveSvc.Approve(accountantScope, batch.Id, new BatchApproveInput("Reviewed against payout register.", batch.Version), ct);
+    await Throws("incentive.state", () => incentiveSvc.Recalculate(tomorrow, batch.Id, new BatchRecalcInput("Too late to recalculate.", batch.Version), ct));
+    await incentiveSvc.Pay(accountantScope, batch.Id, new BatchPayInput(100, "Bank transfer", "INC-PAY-1", batch.Version), ct);
+    await Throws("incentive.payment", () => incentiveSvc.Pay(accountantScope, batch.Id, new BatchPayInput(batch.TotalAmount, "Bank transfer", "INC-PAY-2", batch.Version), ct));
+    await incentiveSvc.Pay(accountantScope, batch.Id, new BatchPayInput(batch.TotalAmount - 100, "Cheque", "INC-PAY-3", batch.Version), ct);
+    Assert(data.IncentiveBatches.First(b => b.Id == batch.Id).Status == "Paid");
+    clock.UtcNow = fixedNow;
+});
+await Test("telemedicine booking is one per appointment and consent-gated", async () =>
+{
+    teleAppointment = await service.Book(scope, new BookingInput(data.Patients[2].Id, SeedIds.Doctor, clock.UtcNow.AddHours(3), 30), ct);
+    var session = await teleSvc.Book(scope, new TeleSessionInput(teleAppointment.Id), ct);
+    Assert(session.Number.StartsWith("TEL-"));
+    await Throws("tele.duplicate", () => teleSvc.Book(scope, new TeleSessionInput(teleAppointment.Id), ct));
+    await Throws("tele.consent", () => teleSvc.JoinWaiting(scope, session.Id, ct));
+    session = await teleSvc.RecordConsent(scope, session.Id, new TeleConsentInput("PatientConsent", true, "Consent for tele-consultation recorded."), ct);
+    Assert(session.ConsentObtained);
+    session = await teleSvc.JoinWaiting(scope, session.Id, ct);
+    Assert(session.Status == "Waiting");
+    session = await teleSvc.Cancel(scope, session.Id, new VersionInput(session.Version, "Patient cancelled."), ct);
+    Assert(session.Status == "Cancelled");
+});
+await Test("tele join tokens are ephemeral, window-bound and consent-gated", async () =>
+{
+    var second = await service.Book(scope, new BookingInput(data.Patients[3].Id, SeedIds.Doctor, clock.UtcNow.AddHours(5), 30), ct);
+    var session = await teleSvc.Book(scope, new TeleSessionInput(second.Id), ct);
+    session = await teleSvc.RecordConsent(scope, session.Id, new TeleConsentInput("PatientConsent", true, "Consent recorded before join."), ct);
+    await Throws("tele.state", () => teleSvc.IssueJoinToken(scope, session.Id, new VersionInput(session.Version), ct));
+    session = await teleSvc.JoinWaiting(scope, session.Id, ct);
+    var join = await teleSvc.IssueJoinToken(scope, session.Id, new VersionInput(session.Version), ct);
+    Assert(join.Token.Length > 10 && join.ExpiresAt > clock.UtcNow && join.ExpiresAt <= clock.UtcNow.AddMinutes(6));
+    session = await teleSvc.Admit(scope, session.Id, new VersionInput(session.Version), ct);
+    Assert(session.Status == "InConsultation");
+    await Throws("care.fields", () => teleSvc.End(scope, session.Id, new TeleEndInput("Hi", "Escalate to nearest facility if chest pain.", session.Version), ct));
+    session = await teleSvc.End(scope, session.Id, new TeleEndInput("Reviewed symptoms and vitals remotely.", "Escalate to nearest facility if chest pain or breathlessness.", session.Version), ct);
+    Assert(session.Status == "Completed" && session.EmergencyAdvice.Length > 0);
+    await Throws("tele.state", () => teleSvc.End(scope, session.Id, new TeleEndInput("Ending again for the record here.", "Escalation advice text.", session.Version), ct));
+    await Throws("tele.upload", () => teleSvc.Upload(scope, session.Id, new TeleUploadInput("report.exe", "application/octet-stream", 1024), ct));
+    await Throws("tele.upload", () => teleSvc.Upload(scope, session.Id, new TeleUploadInput("scan.pdf", "application/pdf", 11L * 1024 * 1024), ct));
+    var upload = await teleSvc.Upload(scope, session.Id, new TeleUploadInput("discharge-summary.pdf", "application/pdf", 240000), ct);
+    Assert(upload.FileName == "discharge-summary.pdf");
+    var far = await service.Book(scope, new BookingInput(data.Patients[4].Id, SeedIds.Doctor, clock.UtcNow.AddDays(2), 30), ct);
+    var farSession = await teleSvc.Book(scope, new TeleSessionInput(far.Id), ct);
+    farSession = await teleSvc.RecordConsent(scope, farSession.Id, new TeleConsentInput("PatientConsent", true, "Consent recorded."), ct);
+    farSession = await teleSvc.JoinWaiting(scope, farSession.Id, ct);
+    await Throws("tele.window", () => teleSvc.IssueJoinToken(scope, farSession.Id, new VersionInput(farSession.Version), ct));
+});
+await Test("inventory indents enforce priorities and separation of duties", async () =>
+{
+    await Throws("inventory.indent", () => inventorySvc.RaiseIndent(storeScope, new IndentInput(data.InventoryStores[0].Id, data.InventoryItems[0].Id, 0, "Routine", "Zero quantity request."), ct));
+    await Throws("inventory.indent", () => inventorySvc.RaiseIndent(storeScope, new IndentInput(data.InventoryStores[0].Id, data.InventoryItems[0].Id, 10, "Priority", "Bad priority value."), ct));
+    var indent = await inventorySvc.RaiseIndent(storeScope, new IndentInput(data.InventoryStores[0].Id, data.InventoryItems[0].Id, 100, "Routine", "Replenish sterile gloves below reorder level."), ct);
+    await Throws("inventory.separation", () => inventorySvc.DecideIndent(storeScope, indent.Id, new IndentDecisionInput(true, "Self approval attempt.", indent.Version), ct));
+    indent = await inventorySvc.DecideIndent(scope, indent.Id, new IndentDecisionInput(true, "Approved against annual rate contract.", indent.Version), ct);
+    Assert(indent.Status == "Approved");
+    Phase4Indent = indent;
+});
+await Test("purchase orders require authorized vendors and one order per indent", async () =>
+{
+    var indent = Phase4Indent!;
+    await Throws("inventory.vendor", () => inventorySvc.CreatePO(storeScope, new PurchaseOrderInput("Unknown Vendor Ltd", indent.Id, 50, 800), ct));
+    await Throws("inventory.vendor", () => inventorySvc.CreatePO(storeScope, new PurchaseOrderInput("QuickBuy Traders", indent.Id, 50, 800), ct));
+    await Throws("inventory.tolerance", () => inventorySvc.CreatePO(storeScope, new PurchaseOrderInput("MediCore Supplies Pvt Ltd", indent.Id, 200, 800), ct));
+    var order = await inventorySvc.CreatePO(storeScope, new PurchaseOrderInput("MediCore Supplies Pvt Ltd", indent.Id, 50, 800), ct);
+    Assert(order.Number.StartsWith("PO-") && order.Status == "Issued");
+    await Throws("inventory.duplicate", () => inventorySvc.CreatePO(storeScope, new PurchaseOrderInput("OrthoPlus Instruments", indent.Id, 10, 800), ct));
+    Phase4Order = order;
+});
+await Test("goods receipts enforce tolerance, expiry and batch uniqueness", async () =>
+{
+    var order = Phase4Order!;
+    await Throws("inventory.tolerance", () => inventorySvc.ReceiveGoods(storeScope, order.Id, new GoodsReceiptInput(10, 8, 0, "", "GLV-NEW-1", scope.Today.AddYears(1), order.Version), ct));
+    await Throws("inventory.tolerance", () => inventorySvc.ReceiveGoods(storeScope, order.Id, new GoodsReceiptInput(60, 60, 0, "Over tolerance acceptance.", "GLV-NEW-1", scope.Today.AddYears(1), order.Version), ct));
+    await Throws("inventory.expiry", () => inventorySvc.ReceiveGoods(storeScope, order.Id, new GoodsReceiptInput(50, 50, 0, "", "GLV-NEW-1", scope.Today.AddDays(-1), order.Version), ct));
+    var receipt = await inventorySvc.ReceiveGoods(storeScope, order.Id, new GoodsReceiptInput(50, 48, 2, "Two boxes damaged in transit.", "GLV-NEW-1", scope.Today.AddYears(1), order.Version), ct);
+    Assert(receipt.AcceptedQty == 48 && data.InventoryBatches.Any(b => b.BatchNumber == "GLV-NEW-1" && b.Quantity == 48));
+    Assert(data.InventoryMovements.Any(m => m.RefType == "GoodsReceipt" && m.Quantity == 48));
+    var indent2 = await inventorySvc.RaiseIndent(storeScope, new IndentInput(data.InventoryStores[0].Id, data.InventoryItems[0].Id, 20, "Routine", "Second indent for duplicate batch check."), ct);
+    indent2 = await inventorySvc.DecideIndent(scope, indent2.Id, new IndentDecisionInput(true, "Approved for continuity of supply.", indent2.Version), ct);
+    var order2 = await inventorySvc.CreatePO(storeScope, new PurchaseOrderInput("MediCore Supplies Pvt Ltd", indent2.Id, 20, 800), ct);
+    await Throws("inventory.duplicate", () => inventorySvc.ReceiveGoods(storeScope, order2.Id, new GoodsReceiptInput(20, 20, 0, "", "GLV-NEW-1", scope.Today.AddYears(1), order2.Version), ct));
+    await inventorySvc.ReceiveGoods(storeScope, order2.Id, new GoodsReceiptInput(20, 20, 0, "", "GLV-NEW-2", scope.Today.AddYears(2), order2.Version), ct);
+    Assert(data.Assets.Count == 0);
+});
+await Test("transfers cannot drive stock negative and consumption records movements", async () =>
+{
+    var batch = data.InventoryBatches.First(b => b.BatchNumber == "GLV-NEW-1");
+    await Throws("inventory.stock", () => inventorySvc.DispatchTransfer(storeScope, new StockTransferInput(data.InventoryStores[0].Id, data.InventoryStores[1].Id, data.InventoryItems[0].Id, batch.Id, 5000, "Excessive transfer request."), ct));
+    var transfer = await inventorySvc.DispatchTransfer(storeScope, new StockTransferInput(data.InventoryStores[0].Id, data.InventoryStores[1].Id, data.InventoryItems[0].Id, batch.Id, 10, "Theatre list top-up."), ct);
+    Assert(data.InventoryBatches.First(b => b.Id == batch.Id).Quantity == 38);
+    transfer = await inventorySvc.ReceiveTransfer(storeScope, transfer.Id, new TransferReceiveInput(transfer.Version), ct);
+    Assert(transfer.Status == "Received");
+    var dest = data.InventoryBatches.Single(b => b.BatchNumber == "GLV-NEW-1" && b.StoreId == data.InventoryStores[1].Id);
+    Assert(dest.Quantity == 10);
+    await Throws("inventory.stock", () => inventorySvc.Consume(storeScope, new ConsumptionInput(data.InventoryStores[1].Id, data.InventoryItems[0].Id, dest.Id, 500, "Theatre", "Excessive consumption."), ct));
+    var consumption = await inventorySvc.Consume(storeScope, new ConsumptionInput(data.InventoryStores[1].Id, data.InventoryItems[0].Id, dest.Id, 4, "Operation theatre", "Consumed during emergency list."), ct);
+    Assert(consumption.Number.StartsWith("CONS-") && data.InventoryBatches.First(b => b.Id == dest.Id).Quantity == 6);
+});
+await Test("CSSD set lifecycle enforces pack order, cycle bands and release completeness", async () =>
+{
+    var set = await cssdSvc.RegisterSet(cssdScope, new CssdSetInput("CS-T1", "Test Surgery Set", [new("Forceps", "T1-001"), new("Scissors", "T1-002")]), ct);
+    await Throws("cssd.state", () => cssdSvc.StartCycle(cssdScope, new CycleInput("Steam", "STM-1", 121, 30, [set.Id]), ct));
+    set = await cssdSvc.CleanPack(cssdScope, set.Id, new VersionInput(set.Version), ct);
+    Assert(set.Status == "Packed");
+    await Throws("cssd.cycle", () => cssdSvc.StartCycle(cssdScope, new CycleInput("Steam", "STM-1", 100, 30, [set.Id]), ct));
+    await Throws("cssd.cycle", () => cssdSvc.StartCycle(cssdScope, new CycleInput("Ethylene oxide", "EO-1", 30, 30, [set.Id]), ct));
+    var cycle = await cssdSvc.StartCycle(cssdScope, new CycleInput("Steam", "STM-1", 121, 30, [set.Id]), ct);
+    await Throws("cssd.release", () => cssdSvc.ReleaseCycle(cssdScope, cycle.Id, new CycleReleaseInput(cycle.Version, "No indicators yet."), ct));
+    await cssdSvc.RecordIndicator(cssdScope, cycle.Id, new IndicatorInput("Chemical", "Pass", "Strip changed correctly."), ct);
+    cycle = await cssdSvc.ReleaseCycle(cssdScope, cycle.Id, new CycleReleaseInput(cycle.Version, "Cycle parameters within band."), ct);
+    Assert(cycle.Status == "Passed" && data.InstrumentSets.First(x => x.Id == set.Id).Status == "Sterile");
+    var dirty = await cssdSvc.CleanPack(cssdScope, data.InstrumentSets.First(x => x.Code == "CS-002").Id, new VersionInput(data.InstrumentSets.First(x => x.Code == "CS-002").Version), ct);
+    Assert(dirty.MissingCount == 1);
+    var cycle2 = await cssdSvc.StartCycle(cssdScope, new CycleInput("Steam", "STM-2", 134, 20, [dirty.Id]), ct);
+    await cssdSvc.RecordIndicator(cssdScope, cycle2.Id, new IndicatorInput("Chemical", "Pass", "Strip changed correctly."), ct);
+    await Throws("cssd.completeness", () => cssdSvc.ReleaseCycle(cssdScope, cycle2.Id, new CycleReleaseInput(cycle2.Version, "Attempting release with missing instruments."), ct));
+    var fresh = await cssdSvc.RegisterSet(cssdScope, new CssdSetInput("CS-T3", "Third Test Set", [new("Retractor", "T3-001")]), ct);
+    fresh = await cssdSvc.CleanPack(cssdScope, fresh.Id, new VersionInput(fresh.Version), ct);
+    var cycle3 = await cssdSvc.StartCycle(cssdScope, new CycleInput("Plasma", "PLS-1", 50, 45, [fresh.Id]), ct);
+    await cssdSvc.RecordIndicator(cssdScope, cycle3.Id, new IndicatorInput("Biological", "Fail", "Growth observed in vial."), ct);
+    Assert(data.SterilizerCycles.First(c => c.Id == cycle3.Id).Status == "Failed" && data.InstrumentSets.First(x => x.Id == fresh.Id).Status == "Quarantined");
+    Phase4Cycle = cycle;
+});
+await Test("CSSD issues track returns and recalls stay unique per cycle", async () =>
+{
+    var set = data.InstrumentSets.First(x => x.Code == "CS-T1");
+    var issue = await cssdSvc.IssueSet(cssdScope, new CssdIssueInput(set.Id, null, "Theatre 2 · Dr. Menon"), ct);
+    Assert(issue.Status == "Issued" && data.InstrumentSets.First(x => x.Id == set.Id).Status == "Issued");
+    await Throws("cssd.state", () => cssdSvc.IssueSet(cssdScope, new CssdIssueInput(set.Id, null, "Theatre 1"), ct));
+    issue = await cssdSvc.ReturnIssue(cssdScope, issue.Id, new CssdReturnInput("Incomplete", issue.Version), ct);
+    Assert(issue.ReturnCondition == "Incomplete" && data.InstrumentSets.First(x => x.Id == set.Id).MissingCount == 1);
+    var recall = await cssdSvc.Recall(cssdScope, new RecallInput(Phase4Cycle!.Id, "Biological indicator concerns raised post-release."), ct);
+    Assert(recall.Status == "Open" && recall.Number.StartsWith("RCL-"));
+    await Throws("cssd.recall", () => cssdSvc.Recall(cssdScope, new RecallInput(Phase4Cycle!.Id, "Duplicate recall attempt for the same cycle."), ct));
+    recall = await cssdSvc.CloseRecall(cssdScope, recall.Id, new VersionInput(0, "All affected sets traced and quarantined."), ct);
+    Assert(recall.Status == "Closed");
+});
+
 Console.WriteLine($"\n{passed} application/domain tests passed. SQL Server integration tests are a separate release gate.");
-sealed class TestClock : IClock { public DateTimeOffset UtcNow { get; } = new(2026, 11, 13, 10, 0, 0, TimeSpan.Zero); }
+sealed class TestClock : IClock { public DateTimeOffset UtcNow { get; set; } = new(2026, 11, 13, 10, 0, 0, TimeSpan.Zero); }

@@ -4,7 +4,7 @@ using Careflow.Domain;
 namespace Careflow.Infrastructure;
 
 /// <summary>Explicit development/test adapter only. Composition refuses it outside Demo mode.</summary>
-public sealed class MemoryUnitOfWork(DemoData initial) : IUnitOfWork, IDisposable
+public sealed partial class MemoryUnitOfWork(DemoData initial) : IUnitOfWork, IDisposable
 {
     private DemoData data = initial;
     private readonly SemaphoreSlim gate = new(1, 1);
@@ -33,6 +33,24 @@ public sealed class MemoryUnitOfWork(DemoData initial) : IUnitOfWork, IDisposabl
             data.OtBookings = candidate.OtBookings; data.OtChecklists = candidate.OtChecklists;
             data.BloodUnits = candidate.BloodUnits; data.BloodScreenings = candidate.BloodScreenings;
             data.Crossmatches = candidate.Crossmatches; data.BloodIssues = candidate.BloodIssues;
+            data.Coverages = candidate.Coverages; data.Preauthorizations = candidate.Preauthorizations;
+            data.Claims = candidate.Claims; data.ClaimLines = candidate.ClaimLines;
+            data.ClaimQueries = candidate.ClaimQueries; data.Settlements = candidate.Settlements;
+            data.InsurancePlans = candidate.InsurancePlans;
+            data.IncentiveRules = candidate.IncentiveRules; data.IncentiveBatches = candidate.IncentiveBatches;
+            data.IncentiveLines = candidate.IncentiveLines; data.IncentivePayments = candidate.IncentivePayments;
+            data.TeleSessions = candidate.TeleSessions; data.TeleConsentEvents = candidate.TeleConsentEvents;
+            data.TeleWaitingEvents = candidate.TeleWaitingEvents; data.TeleUploads = candidate.TeleUploads;
+            data.InventoryStores = candidate.InventoryStores; data.InventoryItems = candidate.InventoryItems;
+            data.InventoryBatches = candidate.InventoryBatches; data.InventoryMovements = candidate.InventoryMovements;
+            data.Vendors = candidate.Vendors; data.InventoryIndents = candidate.InventoryIndents;
+            data.PurchaseOrders = candidate.PurchaseOrders; data.GoodsReceipts = candidate.GoodsReceipts;
+            data.InventoryTransfers = candidate.InventoryTransfers; data.InventoryConsumptions = candidate.InventoryConsumptions;
+            data.Assets = candidate.Assets;
+            data.InstrumentSets = candidate.InstrumentSets; data.InstrumentItems = candidate.InstrumentItems;
+            data.SterilizerCycles = candidate.SterilizerCycles; data.CycleLoads = candidate.CycleLoads;
+            data.CycleIndicators = candidate.CycleIndicators; data.CssdIssues = candidate.CssdIssues;
+            data.CssdRecalls = candidate.CssdRecalls;
             return result;
         }
         finally { gate.Release(); }

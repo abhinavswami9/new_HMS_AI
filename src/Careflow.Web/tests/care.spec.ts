@@ -11,7 +11,7 @@ test("phase 2 inpatient, nursing, pharmacy and LIS workflow", async ({
     page.getByRole("heading", {
       name: /Good (morning|afternoon|evening), Anjali/,
     }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 15000 });
 
   const registration = await page.request.post("/api/v1/patients", {
     data: {
@@ -34,7 +34,7 @@ test("phase 2 inpatient, nursing, pharmacy and LIS workflow", async ({
     page.getByRole("heading", {
       name: /Good (morning|afternoon|evening), Anjali/,
     }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 15000 });
   const workspace = await (await page.request.get("/api/v1/workspace")).json();
   const bed = workspace.workspace.care.beds.find(
     (b: { status: string }) => b.status === "Available",

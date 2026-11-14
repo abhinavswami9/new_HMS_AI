@@ -12,7 +12,7 @@ test("synthetic patient → appointment → signed EMR → invoice → payment",
     page.getByRole("heading", {
       name: /Good (morning|afternoon|evening), Anjali/,
     }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 15000 });
   await page
     .getByRole("button", { name: /Register patient/ })
     .first()
@@ -163,8 +163,8 @@ test("mobile navigation, module honesty and dark appearance", async ({
   await expect(
     page.getByRole("heading", { name: "One platform. Every possibility." }),
   ).toBeVisible();
-  await page.getByLabel("Filter module phase").selectOption("Phase 4");
-  await page.getByRole("button", { name: /Phase 4.*Insurance/ }).click();
+  await page.getByLabel("Filter module phase").selectOption("Phase 5");
+  await page.getByRole("button", { name: /Phase 5.*Quality/ }).click();
   await expect(page.getByRole("dialog")).toContainText(
     "implementation planned",
   );

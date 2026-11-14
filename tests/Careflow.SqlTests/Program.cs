@@ -82,7 +82,7 @@ await using (var tx = (DbTransaction)await setup.BeginTransactionAsync(Isolation
     {
         await Exec("INSERT INTO org.Hospitals(Id,Code,Name) VALUES(@id,@code,@name)", ("id", hospitalId), ("code", $"SQL{runTag}"), ("name", "SQL Integration Hospital"));
         await Exec("INSERT INTO org.Branches(Id,HospitalId,Code,Name) VALUES(@id,@h,@code,@name)", ("id", branchId), ("h", hospitalId), ("code", "MAIN"), ("name", "Main Branch"));
-        foreach (var key in new[] { "patients", "appointments", "consultations", "billing", "ipd", "nursing", "pharmacy", "laboratory", "radiology", "emergency", "ot", "blood" })
+        foreach (var key in new[] { "patients", "appointments", "consultations", "billing", "ipd", "nursing", "pharmacy", "laboratory", "radiology", "emergency", "ot", "blood", "insurance", "incentives", "telemedicine", "inventory", "cssd" })
             await Exec("INSERT INTO org.ModuleInstallations(HospitalId,BranchId,ModuleKey,Enabled) VALUES(@h,@b,@key,1)", ("h", hospitalId), ("b", branchId), ("key", key));
         await Exec("INSERT INTO org.Policies(HospitalId,BranchId,[Key],Version,PayloadJson,EffectiveFromUtc,ApprovedBy,Reason) VALUES(@h,@b,'nursing.escalation',1,@json,SYSUTCDATETIME(),NULL,'Fixture thresholds await governed approval.')",
             ("h", hospitalId), ("b", branchId), ("json", "{\"spo2Below\":90,\"systolicBelow\":90,\"systolicAbove\":180,\"pulseBelow\":50,\"pulseAbove\":130,\"temperatureAtOrAbove\":39.5,\"painAtOrAbove\":8}"));
@@ -328,6 +328,8 @@ await Test("phase 2 discharge requires a summary and releases the bed", async ()
 
 // Phase 3: RIS, emergency, operation theatre and blood bank on SQL Server
 var radiology = new RadiologyService(uow, clock); var emergencySvc = new EmergencyService(uow, clock); var otSvc = new OtService(uow, clock); var bloodBank = new BloodBankService(uow, clock);
+var insuranceSvc = new InsuranceService(uow, clock); var incentiveSvc = new IncentiveService(uow, clock); var teleSvc = new TelemedicineService(uow, clock);
+var inventorySvc = new InventoryService(uow, clock); var cssdSvc = new CssdService(uow, clock);
 var radUserId = Guid.NewGuid(); var rad2UserId = Guid.NewGuid(); var bloodtechUserId = Guid.NewGuid();
 await Test("phase 3 role users bootstrap for RIS and blood bank", async () =>
 {
@@ -389,6 +391,37 @@ await Test("phase 3 blood issues close immutably and unit numbers stay unique", 
     Assert(issue.Status == "Transfused");
     var tampered = false; try { await ExecSql("UPDATE blood.Issues SET Status='Issued' WHERE Id=@id", ("id", issue.Id)); } catch { tampered = true; }
     Assert(tampered);
+});
+
+await Test("phase 4 claims settle immutably and settlement references stay unique", async () =>
+{
+    var patient = await service.Register(scope, input with { FirstName = "P4", LastName = "Claim", Phone = "+91 9000000515" }, ct);
+    var payerId = Guid.NewGuid(); var planId2 = Guid.NewGuid();
+    await ExecSql("INSERT INTO insurance.Payers(Id,HospitalId,Code,Name,Contact,Active) VALUES(@id,@h,'SQLPAY','SQL Panel TPA','',1)", ("id", payerId), ("h", hospitalId));
+    await ExecSql("INSERT INTO insurance.Plans(Id,HospitalId,PayerId,Code,Name,PolicyType,SumInsuredLimit) VALUES(@id,@h,@payer,'SQLPLAN','SQL Family Floater','Family floater',200000)", ("id", planId2), ("h", hospitalId), ("payer", payerId));
+    var coverage = await insuranceSvc.RegisterCoverage(scope, new CoverageInput(patient.Id, planId2, "POL-SQL-9001", "MBR-SQL-1", DateOnly.FromDateTime(clock.UtcNow.UtcDateTime.AddDays(-30)), DateOnly.FromDateTime(clock.UtcNow.UtcDateTime.AddDays(330)), 100000, 1000), ct);
+    var claim = await insuranceSvc.CreateClaim(scope, new ClaimInput(patient.Id, coverage.Id, null, null, "J06.9", [new("CONS-1", "Consultation", 1, 500)]), ct);
+    claim = await insuranceSvc.SubmitClaim(scope, claim.Id, new VersionInput(claim.Version), ct);
+    claim = await insuranceSvc.DecideClaim(scope, claim.Id, new ClaimDecisionInput("Approved", 500, "Approved as per policy schedule.", claim.Version), ct);
+    await insuranceSvc.SettleClaim(scope, claim.Id, new SettlementInput(500, "Bank transfer", "STL-SQL-1", claim.Version), ct);
+    Assert((await Query1("SELECT Status FROM insurance.Claims WHERE Id=@id", ("id", claim.Id)))?.ToString() == "Settled");
+    await Throws("insurance.settlement", () => insuranceSvc.SettleClaim(scope, claim.Id, new SettlementInput(100, "Cash", "STL-SQL-2", 9), ct));
+    var tampered = false; try { await ExecSql("UPDATE insurance.Claims SET Status='Draft' WHERE Id=@id", ("id", claim.Id)); } catch { tampered = true; }
+    Assert(tampered);
+});
+await Test("phase 4 CSSD cycles release with indicators and stay immutable when closed", async () =>
+{
+    var set = await cssdSvc.RegisterSet(scope, new CssdSetInput("SQL-CS-1", "SQL Major Set", [new("Forceps", "SQL-INS-1")]), ct);
+    set = await cssdSvc.CleanPack(scope, set.Id, new VersionInput(set.Version), ct);
+    var cycle = await cssdSvc.StartCycle(scope, new CycleInput("Steam", "SQL-STM-1", 121, 30, [set.Id]), ct);
+    await Throws("cssd.release", () => cssdSvc.ReleaseCycle(scope, cycle.Id, new CycleReleaseInput(cycle.Version, "No indicators recorded."), ct));
+    await cssdSvc.RecordIndicator(scope, cycle.Id, new IndicatorInput("Chemical", "Pass", "SQL synthetic indicator check."), ct);
+    cycle = await cssdSvc.ReleaseCycle(scope, cycle.Id, new CycleReleaseInput(cycle.Version, "Cycle within validated band."), ct);
+    Assert(cycle.Status == "Passed");
+    var tampered = false; try { await ExecSql("UPDATE cssd.Cycles SET Status='Running' WHERE Id=@id", ("id", cycle.Id)); } catch { tampered = true; }
+    Assert(tampered);
+    var appendOnly = false; try { await ExecSql("DELETE FROM cssd.CycleIndicators WHERE CycleId=@id", ("id", cycle.Id)); } catch { appendOnly = true; }
+    Assert(appendOnly);
 });
 
 Console.WriteLine($"\n{passed} SQL integration tests passed against SQL Server.");

@@ -40,6 +40,10 @@ import {
   Sun,
   Syringe,
   Users,
+  Calculator,
+  FileCheck2,
+  Package,
+  Video,
 } from "lucide-react";
 import { AppProvider, useApp } from "./store";
 import { Avatar, Empty, Modal } from "./components";
@@ -57,6 +61,11 @@ import { Radiology } from "./pages/Radiology";
 import { Emergency } from "./pages/Emergency";
 import { OperationTheatre } from "./pages/OperationTheatre";
 import { BloodBank } from "./pages/BloodBank";
+import { Insurance } from "./pages/Insurance";
+import { Incentives } from "./pages/Incentives";
+import { Telemedicine } from "./pages/Telemedicine";
+import { Inventory } from "./pages/Inventory";
+import { CSSD } from "./pages/CSSD";
 const mainNav = [
   { to: "/", label: "Overview", icon: LayoutDashboard },
   { to: "/patients", label: "Patients", icon: Users },
@@ -120,6 +129,41 @@ const careNav = [
     icon: Syringe,
     module: "blood",
     permission: "blood.read",
+  },
+  {
+    to: "/insurance",
+    label: "Insurance & TPA",
+    icon: FileCheck2,
+    module: "insurance",
+    permission: "insurance.read",
+  },
+  {
+    to: "/incentives",
+    label: "Incentives",
+    icon: Calculator,
+    module: "incentives",
+    permission: "incentive.read",
+  },
+  {
+    to: "/telemedicine",
+    label: "Telemedicine",
+    icon: Video,
+    module: "telemedicine",
+    permission: "tele.read",
+  },
+  {
+    to: "/inventory",
+    label: "Inventory",
+    icon: Package,
+    module: "inventory",
+    permission: "inventory.read",
+  },
+  {
+    to: "/cssd",
+    label: "CSSD",
+    icon: Layers3,
+    module: "cssd",
+    permission: "cssd.read",
   },
 ];
 export default function App() {
@@ -345,6 +389,10 @@ function Shell() {
                     "Pathologist",
                     "Radiologist",
                     "Blood Bank Technician",
+                    "Insurance Coordinator",
+                    "Accountant",
+                    "Store Manager",
+                    "CSSD Technician",
                   ].map((r) => (
                     <option key={r}>{r}</option>
                   ))}
@@ -421,7 +469,7 @@ function Shell() {
             <ShieldCheck size={13} />
             <span>Synthetic preview · no real patient data</span>
             <span className="demo-ribbon-right">
-              Phase 3 <span>·</span> Connected to the Careflow API
+              Phase 4 <span>·</span> Connected to the Careflow API
             </span>
           </div>
         )}
@@ -495,6 +543,46 @@ function Shell() {
               element={
                 <CareRoute module="blood" permission="blood.read">
                   <BloodBank />
+                </CareRoute>
+              }
+            />
+            <Route
+              path="/insurance"
+              element={
+                <CareRoute module="insurance" permission="insurance.read">
+                  <Insurance />
+                </CareRoute>
+              }
+            />
+            <Route
+              path="/incentives"
+              element={
+                <CareRoute module="incentives" permission="incentive.read">
+                  <Incentives />
+                </CareRoute>
+              }
+            />
+            <Route
+              path="/telemedicine"
+              element={
+                <CareRoute module="telemedicine" permission="tele.read">
+                  <Telemedicine />
+                </CareRoute>
+              }
+            />
+            <Route
+              path="/inventory"
+              element={
+                <CareRoute module="inventory" permission="inventory.read">
+                  <Inventory />
+                </CareRoute>
+              }
+            />
+            <Route
+              path="/cssd"
+              element={
+                <CareRoute module="cssd" permission="cssd.read">
+                  <CSSD />
                 </CareRoute>
               }
             />

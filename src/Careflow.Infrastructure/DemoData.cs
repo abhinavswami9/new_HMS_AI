@@ -53,6 +53,40 @@ public sealed class DemoData
     public List<BloodScreening> BloodScreenings { get; set; } = [];
     public List<Crossmatch> Crossmatches { get; set; } = [];
     public List<BloodIssue> BloodIssues { get; set; } = [];
+    public List<Payer> Payers { get; set; } = [];
+    public List<Coverage> Coverages { get; set; } = [];
+    public List<Preauthorization> Preauthorizations { get; set; } = [];
+    public List<Claim> Claims { get; set; } = [];
+    public List<ClaimLine> ClaimLines { get; set; } = [];
+    public List<ClaimQuery> ClaimQueries { get; set; } = [];
+    public List<Settlement> Settlements { get; set; } = [];
+    public List<InsurancePlan> InsurancePlans { get; set; } = [];
+    public List<IncentiveRule> IncentiveRules { get; set; } = [];
+    public List<IncentiveBatch> IncentiveBatches { get; set; } = [];
+    public List<IncentiveLine> IncentiveLines { get; set; } = [];
+    public List<IncentivePayment> IncentivePayments { get; set; } = [];
+    public List<TeleSession> TeleSessions { get; set; } = [];
+    public List<TeleConsentEvent> TeleConsentEvents { get; set; } = [];
+    public List<TeleWaitingEvent> TeleWaitingEvents { get; set; } = [];
+    public List<TeleUpload> TeleUploads { get; set; } = [];
+    public List<InventoryStore> InventoryStores { get; set; } = [];
+    public List<InventoryItem> InventoryItems { get; set; } = [];
+    public List<InventoryBatch> InventoryBatches { get; set; } = [];
+    public List<InventoryMovement> InventoryMovements { get; set; } = [];
+    public List<Vendor> Vendors { get; set; } = [];
+    public List<InventoryIndent> InventoryIndents { get; set; } = [];
+    public List<PurchaseOrder> PurchaseOrders { get; set; } = [];
+    public List<GoodsReceipt> GoodsReceipts { get; set; } = [];
+    public List<InventoryTransfer> InventoryTransfers { get; set; } = [];
+    public List<InventoryConsumption> InventoryConsumptions { get; set; } = [];
+    public List<Asset> Assets { get; set; } = [];
+    public List<InstrumentSet> InstrumentSets { get; set; } = [];
+    public List<InstrumentItem> InstrumentItems { get; set; } = [];
+    public List<SterilizerCycle> SterilizerCycles { get; set; } = [];
+    public List<CycleLoad> CycleLoads { get; set; } = [];
+    public List<CycleIndicator> CycleIndicators { get; set; } = [];
+    public List<CssdIssue> CssdIssues { get; set; } = [];
+    public List<CssdRecall> CssdRecalls { get; set; } = [];
     public Dictionary<string, string> Policies { get; set; } = [];
     public string HospitalName { get; set; } = "Nova Care Hospital";
     public string BranchName { get; set; } = "Main branch · New Delhi";
@@ -78,19 +112,19 @@ public sealed class DemoData
         { AllergyReviewed = true };
         var historical = new Encounter(Guid.Parse("90000000-0000-0000-0000-000000000002"), d.Patients[0].Id, d.Appointments[0].Id, SeedIds.Doctor, "Draft",
             "Routine cardiovascular review", "Regular rhythm. No pedal edema.", "Essential hypertension — stable", "Continue current treatment and lifestyle measures.", "Review in 4 weeks with home BP log", new(36.7m, 74, 128, 82, 72, 98), [],
-            [new(d.Medicines[4].Id, "Amlodipine 5 mg", "1 tablet", "Once daily", 28, "As previously tolerated; monitor blood pressure")], [], now.AddHours(-2))
+            [new(d.Medicines[4].Id, "Amlodipine 5 mg", "1 tablet", "Once daily", 28, "As previously tolerated; monitor blood pressure")], [], now.AddDays(-3))
         { AllergyReviewed = true };
-        historical = historical with { Status = "Signed", SignedBy = d.Doctors[0].Name, SignedAt = now.AddHours(-1), ContentHash = HospitalService.CanonicalHash(historical), Version = 2 };
+        historical = historical with { Status = "Signed", SignedBy = d.Doctors[0].Name, SignedAt = now.AddDays(-3).AddHours(1), ContentHash = HospitalService.CanonicalHash(historical), Version = 2 };
         var secondDraft = new Encounter(Guid.Parse("90000000-0000-0000-0000-000000000003"), d.Patients[4].Id, null, d.Doctors[1].Id, "Draft", "Fatigue and increased thirst", "Routine systemic examination documented for review.", "Type 2 diabetes mellitus — review required", "Investigation and lifestyle review", "Review with reports", new(36.9m, 80, 132, 86, 81, 97), [], [], [new("Laboratory", "HbA1c", "Fasting sample preferred")], now.AddMinutes(-40));
         d.Encounters = [draft, secondDraft, historical];
         d.Invoices = Enumerable.Range(0, 7).Select(i =>
         {
             var lines = new[] { new InvoiceLine(d.Services[i % d.Services.Count].Id, d.Services[i % d.Services.Count].Name, 1, d.Services[i % d.Services.Count].Price) };
-            var payments = i is 0 or 3 or 5 ? new[] { new Payment(Guid.Parse($"a0000000-0000-0000-0000-{i + 1:D12}"), lines.Sum(l => l.Quantity * l.UnitPrice), i == 0 ? "UPI" : "Card", $"SYNTH-PAY-{i + 1:D5}", now.AddHours(-i), SeedIds.Admin) } : Array.Empty<Payment>();
+            var payments = i is 0 or 3 or 5 ? new[] { new Payment(Guid.Parse($"a0000000-0000-0000-0000-{i + 1:D12}"), lines.Sum(l => l.Quantity * l.UnitPrice), i == 0 ? "UPI" : "Card", $"SYNTH-PAY-{i + 1:D5}", now.AddDays(-3).AddHours(-i), SeedIds.Admin) } : Array.Empty<Payment>();
             return new Invoice(Guid.Parse($"b0000000-0000-0000-0000-{i + 1:D12}"), $"INV-{now.Year}-{i + 1:D4}", d.Patients[i].Id, null, i == 6 ? "Draft" : payments.Length > 0 ? "Paid" : "Issued", lines, 0, 0, payments, now.AddHours(-i - 1), now.AddHours(-i - 1));
         }).ToList();
-        d.Modules = [new("patients", "Patient registration & UHID", true, 1, "A unique patient identity, demographics, duplicate review and a longitudinal chart."), new("appointments", "Appointments & queues", true, 1, "Practitioner scheduling, booking, check-in and live patient-flow management."), new("consultations", "OPD & doctor EMR", true, 1, "Clinical notes, vitals, allergies, treatment plans and signed medical records."), new("billing", "Billing & payments", true, 1, "Service-based invoices, controlled issue and traceable payment collection."), new("ipd", "Inpatient management", true, 2, "Admission, discharge, transfer, care teams and discharge summaries."), new("nursing", "Nursing & bed management", true, 2, "Visual bed board, nursing assessments, eMAR and shift handovers."), new("pharmacy", "Pharmacy management", true, 2, "Prescription dispensing, batch traceability, stock and expiry control."), new("laboratory", "Laboratory · LIS", true, 2, "Specimen tracking, result validation, authorization and NABL-oriented quality."), new("radiology", "Radiology · RIS", true, 3, "Modality scheduling, worklists, structured reports and approval."), new("pacs", "PACS & DICOM", false, 3, "Standards-based imaging archive integration and secure viewer access."), new("emergency", "Emergency & casualty", true, 3, "Rapid registration, triage, observation and emergency disposition."), new("ot", "Operation theatre", true, 3, "Surgical scheduling, safety checklists, implants and recovery."), new("blood", "Blood bank", true, 3, "Donor-to-recipient traceability, testing, crossmatch and inventory."), new("insurance", "Insurance & TPA", false, 4, "Coverage, pre-authorization, claims and settlement reconciliation."), new("incentives", "Doctor incentives", false, 4, "Configurable incentive rules, calculation, approval and payment reporting."), new("telemedicine", "Telemedicine", false, 4, "Consent-aware video consultations, waiting rooms and digital care records."), new("inventory", "Inventory & procurement", false, 4, "Central and department stores, purchasing, GRN and asset management."), new("cssd", "CSSD", false, 4, "Instrument tracking, sterilization cycles, release and recall traceability."), new("quality", "Quality & infection control", false, 5, "Configurable NABH/NABL-oriented audits, incidents, CAPA and indicators."), new("portal", "Patient portal", false, 5, "Verified access to appointments, records, reports, bills and consent."), new("reports", "Advanced reporting", false, 5, "Governed dashboards, a configurable report builder and audited exports.")];
-        d.Users = [new(SeedIds.Admin, "admin", "Anjali Sharma", passwords.Hash("Preview!2026"), "Hospital Admin", SeedIds.Hospital, SeedIds.Branch, true), new(SeedIds.Doctor, "doctor", d.Doctors[0].Name, passwords.Hash("Preview!2026"), "Doctor", SeedIds.Hospital, SeedIds.Branch, true), .. new[] { ("reception", "Riya Kapoor", "Receptionist"), ("billing", "Amit Joshi", "Billing Staff"), ("nurse", "Nisha Thomas", "Nurse"), ("pharmacist", "Kiran Rao", "Pharmacist"), ("labtech", "Sana Iqbal", "Lab Technician"), ("pathologist", "Dr. Vivek Malhotra", "Pathologist"), ("labtech2", "Rohit Sen", "Lab Technician"), ("nurse2", "Amrita Nair", "Nurse"), ("radiologist", "Dr. Kabir Menon", "Radiologist"), ("radiologist2", "Dr. Arvind Nair", "Radiologist"), ("bloodtech", "Farah Khan", "Blood Bank Technician") }.Select((x, i) => new UserAccount(Guid.Parse($"30000000-0000-0000-0000-{i + 2:D12}"), x.Item1, x.Item2, passwords.Hash("Preview!2026"), x.Item3, SeedIds.Hospital, SeedIds.Branch, true))];
+        d.Modules = [new("patients", "Patient registration & UHID", true, 1, "A unique patient identity, demographics, duplicate review and a longitudinal chart."), new("appointments", "Appointments & queues", true, 1, "Practitioner scheduling, booking, check-in and live patient-flow management."), new("consultations", "OPD & doctor EMR", true, 1, "Clinical notes, vitals, allergies, treatment plans and signed medical records."), new("billing", "Billing & payments", true, 1, "Service-based invoices, controlled issue and traceable payment collection."), new("ipd", "Inpatient management", true, 2, "Admission, discharge, transfer, care teams and discharge summaries."), new("nursing", "Nursing & bed management", true, 2, "Visual bed board, nursing assessments, eMAR and shift handovers."), new("pharmacy", "Pharmacy management", true, 2, "Prescription dispensing, batch traceability, stock and expiry control."), new("laboratory", "Laboratory · LIS", true, 2, "Specimen tracking, result validation, authorization and NABL-oriented quality."), new("radiology", "Radiology · RIS", true, 3, "Modality scheduling, worklists, structured reports and approval."), new("pacs", "PACS & DICOM", false, 3, "Standards-based imaging archive integration and secure viewer access."), new("emergency", "Emergency & casualty", true, 3, "Rapid registration, triage, observation and emergency disposition."), new("ot", "Operation theatre", true, 3, "Surgical scheduling, safety checklists, implants and recovery."), new("blood", "Blood bank", true, 3, "Donor-to-recipient traceability, testing, crossmatch and inventory."), new("insurance", "Insurance & TPA", true, 4, "Coverage, pre-authorization, claims and settlement reconciliation."), new("incentives", "Doctor incentives", true, 4, "Configurable incentive rules, calculation, approval and payment reporting."), new("telemedicine", "Telemedicine", true, 4, "Consent-aware video consultations, waiting rooms and digital care records."), new("inventory", "Inventory & procurement", true, 4, "Central and department stores, purchasing, GRN and asset management."), new("cssd", "CSSD", true, 4, "Instrument tracking, sterilization cycles, release and recall traceability."), new("quality", "Quality & infection control", false, 5, "Configurable NABH/NABL-oriented audits, incidents, CAPA and indicators."), new("portal", "Patient portal", false, 5, "Verified access to appointments, records, reports, bills and consent."), new("reports", "Advanced reporting", false, 5, "Governed dashboards, a configurable report builder and audited exports.")];
+        d.Users = [new(SeedIds.Admin, "admin", "Anjali Sharma", passwords.Hash("Preview!2026"), "Hospital Admin", SeedIds.Hospital, SeedIds.Branch, true), new(SeedIds.Doctor, "doctor", d.Doctors[0].Name, passwords.Hash("Preview!2026"), "Doctor", SeedIds.Hospital, SeedIds.Branch, true), .. new[] { ("reception", "Riya Kapoor", "Receptionist"), ("billing", "Amit Joshi", "Billing Staff"), ("nurse", "Nisha Thomas", "Nurse"), ("pharmacist", "Kiran Rao", "Pharmacist"), ("labtech", "Sana Iqbal", "Lab Technician"), ("pathologist", "Dr. Vivek Malhotra", "Pathologist"), ("labtech2", "Rohit Sen", "Lab Technician"), ("nurse2", "Amrita Nair", "Nurse"), ("radiologist", "Dr. Kabir Menon", "Radiologist"), ("radiologist2", "Dr. Arvind Nair", "Radiologist"), ("bloodtech", "Farah Khan", "Blood Bank Technician"), ("insurance", "Ishaan Malhotra", "Insurance Coordinator"), ("account", "Tara Sethi", "Accountant"), ("store", "Manoj Pillai", "Store Manager"), ("cssdtech", "Ritu Bansal", "CSSD Technician") }.Select((x, i) => new UserAccount(Guid.Parse($"30000000-0000-0000-0000-{i + 2:D12}"), x.Item1, x.Item2, passwords.Hash("Preview!2026"), x.Item3, SeedIds.Hospital, SeedIds.Branch, true))];
         d.Sequences = new() { ["UHID:" + SeedIds.Hospital] = 1253, [$"INVOICE:{SeedIds.Branch}:{now.Year}"] = 7, [$"ADMISSION:{SeedIds.Branch}:{now.Year}"] = 2, [$"DISPENSE:{SeedIds.Branch}:{now.Year}"] = 0, [$"LAB:{SeedIds.Branch}:{now.Year}"] = 3, ["LAB_BARCODE:" + SeedIds.Branch] = 1, [$"LAB_ACCESSION:{SeedIds.Branch}:{now.Year}"] = 1, [$"RIS:{SeedIds.Branch}:{now.Year}"] = 3, ["RIS_ACCESSION:" + SeedIds.Branch] = 2, [$"OT:{SeedIds.Branch}:{now.Year}"] = 2, [$"ER:{SeedIds.Branch}:{now.Year}"] = 2, [$"CROSSMATCH:{SeedIds.Branch}:{now.Year}"] = 1, [$"BLOOD:{SeedIds.Branch}:{now.Year}"] = 0 };
         var nurseId = Guid.Parse("30000000-0000-0000-0000-000000000004"); var pharmacistId = Guid.Parse("30000000-0000-0000-0000-000000000005"); var labTechId = Guid.Parse("30000000-0000-0000-0000-000000000006"); var pathologistId = Guid.Parse("30000000-0000-0000-0000-000000000007");
         d.Beds = [.. Enumerable.Range(1, 6).Select(i => new Bed(Guid.Parse($"c0000000-0000-0000-0000-{i:D12}"), "General ward", $"G-{i:D2}", "General", i == 1 ? "Occupied" : i == 5 ? "Cleaning" : "Available", "")),
@@ -145,6 +179,56 @@ public sealed class DemoData
         d.Crossmatches = [new(Guid.NewGuid(), $"XM-{now.Year}-0001", d.BloodUnits[0].Id, d.Patients[4].Id, "Compatible", "Matched", bloodTechId, now.AddMinutes(-90))];
         d.Policies["nursing.escalation"] = System.Text.Json.JsonSerializer.Serialize(new NursingEscalationPolicy(90, 90, 180, 50, 130, 39.5m, 8));
         d.Audit = [new(Guid.NewGuid(), SeedIds.Admin, "Anjali Sharma", "patient.registered", "Patient", d.Patients[0].Id, "Synthetic preview seed", now.AddMinutes(8)), new(Guid.NewGuid(), SeedIds.Admin, "Anjali Sharma", "appointment.booked", "Appointment", d.Appointments[2].Id, "Synthetic preview seed", now.AddMinutes(12)), new(Guid.NewGuid(), SeedIds.Doctor, d.Doctors[0].Name, "encounter.signed", "Encounter", historical.Id, "Synthetic preview seed", now.AddMinutes(18)), new(Guid.NewGuid(), SeedIds.Admin, "Amit Joshi", "invoice.payment.recorded", "Invoice", d.Invoices[0].Id, "Synthetic preview seed", now.AddMinutes(24))];
+        d.Payers =
+        [
+            new(Guid.Parse("f0000000-0000-0000-0000-000000000001"), "STAR", "Star Health Insurance", "claims@starhealth.example", true),
+            new(Guid.Parse("f0000000-0000-0000-0000-000000000002"), "NIVA", "Niva Bupa Health Insurance", "tpa@nivabupa.example", true)
+        ];
+        d.InsurancePlans =
+        [
+            new(Guid.Parse("f1000000-0000-0000-0000-000000000001"), d.Payers[0].Id, "SH-FAM", "Star Family Health Cover", "Family floater", 500000),
+            new(Guid.Parse("f1000000-0000-0000-0000-000000000002"), d.Payers[1].Id, "NB-RAF", "ReAssure Family Floater", "Family floater", 300000)
+        ];
+        d.Coverages =
+        [
+            new(Guid.Parse("e1000000-0000-0000-0000-000000000001"), $"COV-{now.Year}-0001", d.Patients[0].Id, d.InsurancePlans[0].Id, $"POL-STAR-{now.Year}-88121", "MBR-008121", new DateOnly(now.Year, 1, 1), new DateOnly(now.Year, 12, 31), 500000, 5000, "Active"),
+            new(Guid.Parse("e1000000-0000-0000-0000-000000000002"), $"COV-{now.Year}-0002", d.Patients[1].Id, d.InsurancePlans[1].Id, $"POL-NIVA-{now.Year}-45210", "MBR-045210", new DateOnly(now.Year, 1, 1), new DateOnly(now.Year, 12, 31), 300000, 2500, "Active")
+        ];
+        d.InventoryStores =
+        [
+            new(Guid.Parse("e2000000-0000-0000-0000-000000000001"), "CMS", "Central Medical Store", "Central"),
+            new(Guid.Parse("e2000000-0000-0000-0000-000000000002"), "OTS", "Theatre Store", "Department")
+        ];
+        d.InventoryItems =
+        [
+            new(Guid.Parse("e3000000-0000-0000-0000-000000000001"), "CON-001", "Gloves, sterile nitrile (box of 100)", "Consumable", "Box", 20, 850, true),
+            new(Guid.Parse("e3000000-0000-0000-0000-000000000002"), "CON-002", "IV cannula 20G", "Consumable", "Piece", 50, 40, true),
+            new(Guid.Parse("e3000000-0000-0000-0000-000000000003"), "AST-001", "Syringe pump", "Asset", "Unit", 2, 42000, true)
+        ];
+        d.Vendors =
+        [
+            new(Guid.Parse("e4000000-0000-0000-0000-000000000001"), "VND-01", "MediCore Supplies Pvt Ltd", true),
+            new(Guid.Parse("e4000000-0000-0000-0000-000000000002"), "VND-02", "OrthoPlus Instruments", true),
+            new(Guid.Parse("e4000000-0000-0000-0000-000000000003"), "VND-03", "QuickBuy Traders", false)
+        ];
+        d.InventoryBatches =
+        [
+            new(Guid.Parse("e5000000-0000-0000-0000-000000000001"), "GLV-2601", d.InventoryItems[0].Id, d.InventoryStores[0].Id, new DateOnly(now.Year + 1, 6, 30), 400, 850),
+            new(Guid.Parse("e5000000-0000-0000-0000-000000000002"), "IVL-2601", d.InventoryItems[1].Id, d.InventoryStores[0].Id, new DateOnly(now.Year + 2, 1, 31), 250, 40)
+        ];
+        d.InstrumentSets =
+        [
+            new(Guid.Parse("f6000000-0000-0000-0000-000000000001"), "CS-001", "Major Surgery Set", "Sterile", 0, now.AddDays(14), null),
+            new(Guid.Parse("f6000000-0000-0000-0000-000000000002"), "CS-002", "Minor Procedure Set", "Dirty", 1, null, null)
+        ];
+        d.InstrumentItems =
+        [
+            new(Guid.NewGuid(), d.InstrumentSets[0].Id, "Scalpel handle", "INS-001-A", "Ok"),
+            new(Guid.NewGuid(), d.InstrumentSets[0].Id, "Artery forceps", "INS-001-B", "Ok"),
+            new(Guid.NewGuid(), d.InstrumentSets[0].Id, "Retractor", "INS-001-C", "Ok"),
+            new(Guid.NewGuid(), d.InstrumentSets[1].Id, "Tissue forceps", "INS-002-A", "Ok"),
+            new(Guid.NewGuid(), d.InstrumentSets[1].Id, "Scissors", "INS-002-B", "Missing")
+        ];
         return d;
     }
 }

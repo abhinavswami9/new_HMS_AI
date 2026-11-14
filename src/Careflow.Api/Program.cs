@@ -63,10 +63,15 @@ builder.Services.AddSingleton<RadiologyService>();
 builder.Services.AddSingleton<EmergencyService>();
 builder.Services.AddSingleton<OtService>();
 builder.Services.AddSingleton<BloodBankService>();
+builder.Services.AddSingleton<InsuranceService>();
+builder.Services.AddSingleton<IncentiveService>();
+builder.Services.AddSingleton<TelemedicineService>();
+builder.Services.AddSingleton<InventoryService>();
+builder.Services.AddSingleton<CssdService>();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.AddPolicy("login", context => RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true }));
+    options.AddPolicy("login", context => RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true }));
     if (demo) options.AddPolicy("demo", context => RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true }));
 });
 var app = builder.Build();
@@ -114,7 +119,7 @@ root.MapGet("/config", async (HttpContext context, HospitalService service, Canc
 {
     var token = context.Request.Cookies["careflow.session"];
     var principal = token is null ? null : await service.Authenticate(token, HospitalId(), BranchId(), ct);
-    return Results.Ok(new { demo, product = "Careflow HIS", phase = 3, principal });
+    return Results.Ok(new { demo, product = "Careflow HIS", phase = 4, principal });
 });
 Guid HospitalId() => Guid.TryParse(builder.Configuration["Careflow:HospitalId"], out var id) ? id : SeedIds.Hospital;
 Guid BranchId() => Guid.TryParse(builder.Configuration["Careflow:BranchId"], out var id) ? id : SeedIds.Branch;
@@ -127,7 +132,7 @@ root.MapPost("/auth/demo", async (DemoInput? input, HttpContext context, Hospita
 {
     if (!demo) return Results.NotFound();
     var role = input?.Role ?? "Hospital Admin";
-    var username = role switch { "Doctor" => "doctor", "Receptionist" => "reception", "Billing Staff" => "billing", "Nurse" => "nurse", "Nurse 2" => "nurse2", "Pharmacist" => "pharmacist", "Lab Technician" => "labtech", "Pathologist" => "pathologist", "Hospital Admin" => "admin", _ => "" };
+    var username = role switch { "Doctor" => "doctor", "Receptionist" => "reception", "Billing Staff" => "billing", "Nurse" => "nurse", "Nurse 2" => "nurse2", "Pharmacist" => "pharmacist", "Lab Technician" => "labtech", "Pathologist" => "pathologist", "Hospital Admin" => "admin", "Radiologist" => "radiologist", "Blood Bank Technician" => "bloodtech", "Insurance Coordinator" => "insurance", "Accountant" => "account", "Store Manager" => "store", "CSSD Technician" => "cssdtech", _ => "" };
     if (username == "") return Results.BadRequest(new { title = "Unknown preview role." });
     var old = context.Request.Cookies["careflow.session"]; if (old is not null) await service.Logout(old, HospitalId(), BranchId(), ct);
     var auth = await service.Login(new LoginInput(username, "Preview!2026"), SeedIds.Hospital, SeedIds.Branch, ct, context.Connection.RemoteIpAddress?.ToString()); SetCookie(context, auth); return Results.Ok(auth.Principal);
@@ -184,6 +189,7 @@ root.MapPost("/invoices/{id:guid}/payments", async (Guid id, PaymentInput input,
 root.MapPut("/modules/{key}", async (string key, ModuleInput input, HttpContext context, HospitalService service, CancellationToken ct) => Results.Ok(await service.SetModule(Scope(context), key, input.Enabled, input.Reason, ct)));
 CareEndpoints.Map(root);
 Phase3Endpoints.Map(root);
+Phase4Endpoints.Map(root);
 root.MapGet("/admin/roles", (HttpContext context) => { Scope(context).Require(Permissions.Admin); return Results.Ok(Permissions.Roles.Select(r => new { role = r.Key, permissions = r.Value })); });
 if (webRoot is not null)
 {

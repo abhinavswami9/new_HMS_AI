@@ -36,7 +36,29 @@ public sealed partial class MemoryHospitalStore
             TriageAssessments = emergency ? Take(data.TriageAssessments.OrderByDescending(t => t.AssessedAt)) : [],
             OtBookings = ot ? Take(data.OtBookings.OrderByDescending(b => b.RequestedAt)) : [],
             BloodUnits = blood ? Take(data.BloodUnits.OrderBy(u => u.ExpiryDate)) : [],
-            BloodIssues = blood ? Take(data.BloodIssues.OrderByDescending(i => i.IssuedAt)) : []
+            BloodIssues = blood ? Take(data.BloodIssues.OrderByDescending(i => i.IssuedAt)) : [],
+            Payers = p.Contains(Permissions.InsuranceRead) ? Take(data.Payers) : [],
+            Plans = p.Contains(Permissions.InsuranceRead) ? Take(data.InsurancePlans) : [],
+            Coverages = p.Contains(Permissions.InsuranceRead) ? Take(data.Coverages.OrderByDescending(c => c.ValidTo)) : [],
+            Preauthorizations = p.Contains(Permissions.InsuranceRead) ? Take(data.Preauthorizations.OrderByDescending(x => x.RequestedAt)) : [],
+            Claims = p.Contains(Permissions.InsuranceRead) ? Take(data.Claims.OrderByDescending(x => x.CreatedAt)) : [],
+            ClaimLines = p.Contains(Permissions.InsuranceRead) ? Take(data.ClaimLines) : [],
+            Settlements = p.Contains(Permissions.InsuranceRead) ? Take(data.Settlements.OrderByDescending(x => x.SettledAt)) : [],
+            IncentiveRules = p.Contains(Permissions.IncentiveRead) ? Take(data.IncentiveRules) : [],
+            IncentiveBatches = p.Contains(Permissions.IncentiveRead) ? Take(data.IncentiveBatches) : [],
+            IncentiveLines = p.Contains(Permissions.IncentiveRead) ? Take(data.IncentiveLines) : [],
+            IncentivePayments = p.Contains(Permissions.IncentiveRead) ? Take(data.IncentivePayments) : [],
+            TeleSessions = p.Contains(Permissions.TeleRead) ? Take(data.TeleSessions.OrderByDescending(x => x.ScheduledAt)) : [],
+            InventoryItems = p.Contains(Permissions.InventoryRead) ? Take(data.InventoryItems) : [],
+            InventoryStores = p.Contains(Permissions.InventoryRead) ? Take(data.InventoryStores) : [],
+            Vendors = p.Contains(Permissions.InventoryRead) ? Take(data.Vendors) : [],
+            InventoryBatches = p.Contains(Permissions.InventoryRead) ? Take(data.InventoryBatches.OrderBy(b => b.ExpiryDate)) : [],
+            InventoryIndents = p.Contains(Permissions.InventoryRead) ? Take(data.InventoryIndents) : [],
+            PurchaseOrders = p.Contains(Permissions.InventoryRead) ? Take(data.PurchaseOrders) : [],
+            Transfers = p.Contains(Permissions.InventoryRead) ? Take(data.InventoryTransfers) : [],
+            CssdSets = p.Contains(Permissions.CssdRead) ? Take(data.InstrumentSets) : [],
+            CssdCycles = p.Contains(Permissions.CssdRead) ? Take(data.SterilizerCycles) : [],
+            CssdIssues = p.Contains(Permissions.CssdRead) ? Take(data.CssdIssues) : []
         };
         return Task.FromResult(care);
     }
@@ -102,7 +124,11 @@ public sealed partial class MemoryHospitalStore
             RadiologyReports = radiologyReports,
             EmergencyRegistrations = p.Contains(Permissions.EmergencyRead) ? Take(data.EmergencyRegistrations.Where(r => r.PatientId == patientId).OrderByDescending(r => r.ArrivedAt)) : [],
             OtBookings = p.Contains(Permissions.OtRead) ? Take(data.OtBookings.Where(b => b.PatientId == patientId).OrderByDescending(b => b.RequestedAt)) : [],
-            BloodIssues = p.Contains(Permissions.BloodRead) ? Take(data.BloodIssues.Where(i => i.PatientId == patientId).OrderByDescending(i => i.IssuedAt)) : []
+            BloodIssues = p.Contains(Permissions.BloodRead) ? Take(data.BloodIssues.Where(i => i.PatientId == patientId).OrderByDescending(i => i.IssuedAt)) : [],
+            Coverages = p.Contains(Permissions.InsuranceRead) ? Take(data.Coverages.Where(c => c.PatientId == patientId)) : [],
+            Preauthorizations = p.Contains(Permissions.InsuranceRead) ? Take(data.Preauthorizations.Where(x => x.PatientId == patientId)) : [],
+            Claims = p.Contains(Permissions.InsuranceRead) ? Take(data.Claims.Where(x => x.PatientId == patientId)) : [],
+            TeleSessions = p.Contains(Permissions.TeleRead) ? Take(data.TeleSessions.Where(x => x.PatientId == patientId)) : []
         });
     }
 }

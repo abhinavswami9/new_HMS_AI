@@ -60,6 +60,28 @@ public sealed record CareWorkspace(
     public IReadOnlyList<OtBooking> OtBookings { get; init; } = [];
     public IReadOnlyList<BloodUnit> BloodUnits { get; init; } = [];
     public IReadOnlyList<BloodIssue> BloodIssues { get; init; } = [];
+    public IReadOnlyList<Payer> Payers { get; init; } = [];
+    public IReadOnlyList<InsurancePlan> Plans { get; init; } = [];
+    public IReadOnlyList<Coverage> Coverages { get; init; } = [];
+    public IReadOnlyList<Preauthorization> Preauthorizations { get; init; } = [];
+    public IReadOnlyList<Claim> Claims { get; init; } = [];
+    public IReadOnlyList<ClaimLine> ClaimLines { get; init; } = [];
+    public IReadOnlyList<Settlement> Settlements { get; init; } = [];
+    public IReadOnlyList<IncentiveRule> IncentiveRules { get; init; } = [];
+    public IReadOnlyList<IncentiveBatch> IncentiveBatches { get; init; } = [];
+    public IReadOnlyList<IncentiveLine> IncentiveLines { get; init; } = [];
+    public IReadOnlyList<IncentivePayment> IncentivePayments { get; init; } = [];
+    public IReadOnlyList<TeleSession> TeleSessions { get; init; } = [];
+    public IReadOnlyList<InventoryItem> InventoryItems { get; init; } = [];
+    public IReadOnlyList<InventoryStore> InventoryStores { get; init; } = [];
+    public IReadOnlyList<Vendor> Vendors { get; init; } = [];
+    public IReadOnlyList<InventoryBatch> InventoryBatches { get; init; } = [];
+    public IReadOnlyList<InventoryIndent> InventoryIndents { get; init; } = [];
+    public IReadOnlyList<PurchaseOrder> PurchaseOrders { get; init; } = [];
+    public IReadOnlyList<InventoryTransfer> Transfers { get; init; } = [];
+    public IReadOnlyList<InstrumentSet> CssdSets { get; init; } = [];
+    public IReadOnlyList<SterilizerCycle> CssdCycles { get; init; } = [];
+    public IReadOnlyList<CssdIssue> CssdIssues { get; init; } = [];
     public static CareWorkspace Empty { get; } = new([], [], [], [], [], [], [], [], [], [], [], [], [], []);
 }
 public sealed record CareChart(IReadOnlyList<Admission> Admissions, IReadOnlyList<NursingNote> NursingNotes,
@@ -71,5 +93,9 @@ public sealed record CareChart(IReadOnlyList<Admission> Admissions, IReadOnlyLis
     public IReadOnlyList<EmergencyRegistration> EmergencyRegistrations { get; init; } = [];
     public IReadOnlyList<OtBooking> OtBookings { get; init; } = [];
     public IReadOnlyList<BloodIssue> BloodIssues { get; init; } = [];
+    public IReadOnlyList<Coverage> Coverages { get; init; } = [];
+    public IReadOnlyList<Preauthorization> Preauthorizations { get; init; } = [];
+    public IReadOnlyList<Claim> Claims { get; init; } = [];
+    public IReadOnlyList<TeleSession> TeleSessions { get; init; } = [];
     public static CareChart Empty { get; } = new([], [], [], [], [], []);
 }

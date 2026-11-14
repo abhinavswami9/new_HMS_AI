@@ -185,6 +185,10 @@ export type CareChart = {
   emergencyRegistrations: EmergencyRegistration[];
   otBookings: OtBooking[];
   bloodIssues: BloodIssue[];
+  coverages: Coverage[];
+  preauthorizations: Preauthorization[];
+  claims: Claim[];
+  teleSessions: TeleSession[];
   truncated: boolean;
 };
 export type StaffMember = { id: string; name: string };
@@ -415,8 +419,89 @@ export type CareWorkspace = {
   otBookings: OtBooking[];
   bloodUnits: BloodUnit[];
   bloodIssues: BloodIssue[];
+  payers: Payer[];
+  plans: InsurancePlan[];
+  coverages: Coverage[];
+  preauthorizations: Preauthorization[];
+  claims: Claim[];
+  claimLines: ClaimLine[];
+  settlements: Settlement[];
+  incentiveRules: IncentiveRule[];
+  incentiveBatches: IncentiveBatch[];
+  incentiveLines: IncentiveLine[];
+  incentivePayments: IncentivePayment[];
+  teleSessions: TeleSession[];
+  inventoryItems: InventoryItem[];
+  inventoryStores: InventoryStore[];
+  vendors: Vendor[];
+  inventoryBatches: InventoryBatch[];
+  inventoryIndents: InventoryIndent[];
+  purchaseOrders: PurchaseOrder[];
+  transfers: InventoryTransfer[];
+  cssdSets: InstrumentSet[];
+  cssdCycles: SterilizerCycle[];
+  cssdIssues: CssdIssue[];
   nurses: StaffMember[];
   truncated: boolean;
+};
+
+export type Payer = { id: string; code: string; name: string; contact: string; active: boolean };
+export type InsurancePlan = { id: string; payerId: string; code: string; name: string; policyType: string; sumInsuredLimit: number };
+export type Coverage = {
+  id: string; number: string; patientId: string; planId: string; policyNumber: string; memberId: string;
+  validFrom: string; validTo: string; sumInsured: number; deductible: number; status: string; version: number;
+};
+export type Preauthorization = {
+  id: string; number: string; coverageId: string; patientId: string; diagnosisCode: string; procedureCode: string;
+  requestedAmount: number; status: string; validFrom: string | null; validTo: string | null; approvedAmount: number | null;
+  responseNote: string; respondedBy: string | null; respondedAt: string | null; requestedBy: string; requestedAt: string; version: number;
+};
+export type Claim = {
+  id: string; number: string; patientId: string; coverageId: string; invoiceId: string | null; admissionId: string | null;
+  diagnosisCode: string; totalAmount: number; approvedAmount: number; patientLiability: number; status: string;
+  queryNote: string; responseNote: string; rejectionReason: string; submittedBy: string | null; submittedAt: string | null;
+  createdBy: string; createdAt: string; version: number;
+};
+export type ClaimLine = { id: string; claimId: string; serviceCode: string; description: string; quantity: number; unitPrice: number; amount: number; approvedAmount: number };
+export type Settlement = { id: string; number: string; claimId: string; amount: number; mode: string; reference: string; settledAt: string; settledBy: string };
+export type IncentiveRule = {
+  id: string; name: string; scopeKind: string; doctorId: string | null; basis: string; mode: string; value: number;
+  effectiveFrom: string; effectiveTo: string | null; status: string; createdBy: string; version: number;
+};
+export type IncentiveBatch = {
+  id: string; number: string; periodStart: string; periodEnd: string; status: string; totalAmount: number;
+  calculatedBy: string; calculatedAt: string; approvedBy: string; approvedAt: string | null; recalculationReason: string | null; version: number;
+};
+export type IncentiveLine = { id: string; batchId: string; doctorId: string; ruleId: string; basisLabel: string; basisAmount: number; incentiveAmount: number; snapshot: string };
+export type IncentivePayment = { id: string; batchId: string; amount: number; mode: string; reference: string; paidBy: string; paidAt: string };
+export type TeleSession = {
+  id: string; number: string; appointmentId: string; patientId: string; doctorId: string; status: string;
+  scheduledAt: string; consentObtained: boolean; startedAt: string | null; endedAt: string | null; endNote: string; emergencyAdvice: string; version: number;
+};
+export type InventoryItem = { id: string; code: string; name: string; category: string; uom: string; reorderLevel: number; unitCost: number; active: boolean };
+export type InventoryStore = { id: string; code: string; name: string; kind: string };
+export type Vendor = { id: string; code: string; name: string; authorized: boolean };
+export type InventoryBatch = { id: string; batchNumber: string; itemId: string; storeId: string; expiryDate: string | null; quantity: number; unitCost: number; version: number };
+export type InventoryIndent = {
+  id: string; number: string; storeId: string; itemId: string; quantity: number; priority: string; status: string;
+  reason: string; raisedBy: string; raisedAt: string; approvedBy: string | null; approvedAt: string | null; version: number;
+};
+export type PurchaseOrder = {
+  id: string; number: string; vendorId: string; itemId: string; indentId: string; quantity: number; unitCost: number;
+  status: string; raisedBy: string; raisedAt: string; receivedBy: string | null; receivedAt: string | null; version: number;
+};
+export type InventoryTransfer = {
+  id: string; number: string; fromStoreId: string; toStoreId: string; itemId: string; batchId: string; quantity: number;
+  status: string; note: string; dispatchedBy: string; dispatchedAt: string; receivedBy: string | null; receivedAt: string | null; version: number;
+};
+export type InstrumentSet = { id: string; code: string; name: string; status: string; missingCount: number; sterileExpiry: string | null; lastCycleId: string | null; version: number };
+export type SterilizerCycle = {
+  id: string; number: string; method: string; machine: string; tempC: number; durationMin: number; status: string;
+  startedAt: string; endedAt: string | null; operator: string; version: number;
+};
+export type CssdIssue = {
+  id: string; number: string; setId: string; bookingId: string | null; issuedTo: string; status: string;
+  returnCondition: string; issuedAt: string; issuedBy: string; returnedAt: string | null; version: number;
 };
 
 export type RadiologyOrder = {

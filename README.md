@@ -14,6 +14,8 @@ A modular hospital information system foundation: **ASP.NET Core / .NET 10, SQL 
 | [Roadmap](docs/ROADMAP.md)                             | five-phase delivery plan, current scope and production release gates                                      |
 | [Phase 1 boundaries](docs/PHASE1_STATUS.md)            | exactly what works, what is partial and what remains planned                                              |
 | [Phase 2 boundaries](docs/PHASE2_STATUS.md)            | IPD/ADT, beds, nursing/eMAR, pharmacy and LIS delivery boundary                                           |
+| [Phase 3 boundaries](docs/PHASE3_STATUS.md)            | RIS (no live PACS), emergency, operation theatre and blood bank delivery boundary                          |
+| [Phase 4 boundaries](docs/PHASE4_STATUS.md)            | insurance/TPA, incentives, telemedicine (no video provider), inventory and CSSD delivery boundary          |
 | [Deployment runbook](docs/DEPLOYMENT.md)               | SQL migration, administrator/clinician provisioning, configuration and release checks                     |
 
 ## Working Phase 1 slice
@@ -34,7 +36,7 @@ A modular hospital information system foundation: **ASP.NET Core / .NET 10, SQL 
 - Pharmacy batch/expiry stock receipt, append-only stock movements, FEFO dispensing, OPD signed-prescription linkage, IPD active-medication-order linkage and request-hash idempotency.
 - LIS test ordering, barcode/accession collection, processing, rejection, result entry, second-person technical validation, pathologist authorization, critical alerts and immutable authorized reports.
 - Patient chart care-history tab with permission-filtered admissions, nursing notes, medication orders, dispenses and lab orders/results.
-- Branch module settings now cover Phase 3; Phase 4+ modules still cannot be activated by a toggle.
+- Branch module settings now cover Phase 4; Phase 5+ modules still cannot be activated by a toggle.
 
 ## Working Phase 3 slice
 

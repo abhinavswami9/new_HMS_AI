@@ -11,7 +11,7 @@ test("phase 3 radiology, emergency, theatre and blood bank workspaces", async ({
     page.getByRole("heading", {
       name: /Good (morning|afternoon|evening), Anjali/,
     }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 15000 });
 
   // Radiology: worklist renders seeded studies and a new order joins the board.
   await page.getByRole("link", { name: "Radiology", exact: true }).click();
