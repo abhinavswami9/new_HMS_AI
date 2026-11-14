@@ -1,0 +1,72 @@
+using Careflow.Domain;
+namespace Careflow.Application;
+
+public sealed record AdmissionInput(Guid PatientId, Guid BedId, Guid DoctorId, string Reason)
+{
+    public string AdmissionType { get; init; } = "Elective";
+    public string DiagnosisOnAdmission { get; init; } = "";
+    public string AttendantName { get; init; } = "";
+    public string AttendantPhone { get; init; } = "";
+    public string PayerType { get; init; } = "Self";
+    public Guid? CoverageId { get; init; }
+    public DateOnly? ExpectedDischargeDate { get; init; }
+};
+public sealed record TransferInput(Guid BedId, long Version, string Reason);
+public sealed record DischargeInput(long Version, string Summary, string Diagnosis, string Instructions);
+public sealed record BedStatusInput(string Status, string Reason, long Version);
+public sealed record NursingNoteInput(Guid AdmissionId, string Kind, string Text, VitalSet Vitals, int? IntakeMl, int? OutputMl, int? PainScore, string FallRisk);
+public sealed record MedicationOrderInput(Guid AdmissionId, Guid MedicineId, string Dose, string Route, string Frequency, DateTimeOffset StartsAt, DateTimeOffset? EndsAt);
+public sealed record AdministerInput(Guid OrderId, Guid BatchId, decimal Quantity, DateTimeOffset GivenAt, string Witness, string Notes);
+public sealed record HandoverInput(Guid ToNurseId, string Summary, IReadOnlyList<Guid> PatientIds);
+public sealed record ReceiveStockInput(Guid MedicineId, string BatchNumber, DateOnly ExpiryDate, decimal Quantity, decimal UnitCost, string Supplier, string Reference);
+public sealed record DispenseLineInput(Guid MedicineId, decimal Quantity);
+public sealed record DispenseInput(string Kind, Guid PatientId, Guid? EncounterId, Guid? AdmissionId, IReadOnlyList<DispenseLineInput> Lines, string IdempotencyKey);
+public sealed record LabOrderInput(Guid PatientId, Guid TestId, Guid? EncounterId, Guid? AdmissionId, string Priority, string ClinicalNote);
+public sealed record CollectSpecimenInput(string SpecimenType, decimal VolumeMl, long Version);
+public sealed record LabResultInput(string Value, string Unit, decimal? ReferenceLow, decimal? ReferenceHigh, long Version);
+public sealed record AlertAcknowledgeInput(string Note);
+
+public partial interface IHospitalStore
+{
+    Task<CareWorkspace> LoadCareAsync(Scope scope, int limit, CancellationToken ct);
+    Task<bool> HasActiveAdmissionsAsync(CancellationToken ct);
+    Task<Bed?> FindBedAsync(Guid id, CancellationToken ct);
+    Task UpdateBedAsync(Bed bed, CancellationToken ct);
+    Task<Admission?> FindAdmissionAsync(Guid id, CancellationToken ct);
+    Task<Admission?> FindActiveAdmissionByPatientAsync(Guid patientId, CancellationToken ct);
+    Task<Admission?> FindActiveAdmissionByBedAsync(Guid bedId, CancellationToken ct);
+    Task InsertAdmissionAsync(Admission admission, CancellationToken ct);
+    Task UpdateAdmissionAsync(Admission admission, CancellationToken ct);
+    Task InsertBedEventAsync(BedEvent bedEvent, CancellationToken ct);
+    Task InsertNursingNoteAsync(NursingNote note, CancellationToken ct);
+    Task<MedicationOrder?> FindMedicationOrderAsync(Guid id, CancellationToken ct);
+    Task InsertMedicationOrderAsync(MedicationOrder order, CancellationToken ct);
+    Task UpdateMedicationOrderAsync(MedicationOrder order, CancellationToken ct);
+    Task<bool> HasAdministrationAtAsync(Guid orderId, DateTimeOffset givenAt, CancellationToken ct);
+    Task InsertAdministrationAsync(MedicationAdministration administration, CancellationToken ct);
+    Task<ShiftHandover?> FindHandoverAsync(Guid id, CancellationToken ct);
+    Task InsertHandoverAsync(ShiftHandover handover, CancellationToken ct);
+    Task UpdateHandoverAsync(ShiftHandover handover, CancellationToken ct);
+    Task<StockBatch?> FindStockBatchAsync(Guid id, CancellationToken ct);
+    Task<IReadOnlyList<StockBatch>> LoadAvailableBatchesAsync(Guid medicineId, DateOnly today, CancellationToken ct);
+    Task InsertStockBatchAsync(StockBatch batch, CancellationToken ct);
+    Task UpdateStockBatchAsync(StockBatch batch, decimal expectedQuantity, CancellationToken ct);
+    Task<IReadOnlyList<MedicationOrder>> LoadActiveMedicationOrdersAsync(Guid admissionId, CancellationToken ct);
+    Task<string?> FindPolicyAsync(string key, CancellationToken ct);
+    Task<CareChart> LoadCareChartAsync(Guid patientId, int limit, CancellationToken ct);
+    Task<IReadOnlyList<StaffMember>> LoadNursingStaffAsync(CancellationToken ct);
+    Task InsertStockMovementAsync(StockMovement movement, CancellationToken ct);
+    Task<Dispense?> FindDispenseByKeyAsync(string key, CancellationToken ct);
+    Task InsertDispenseAsync(Dispense dispense, CancellationToken ct);
+    Task<LabTest?> FindLabTestAsync(Guid id, CancellationToken ct);
+    Task<IReadOnlyList<LabTest>> LoadLabTestsAsync(CancellationToken ct);
+    Task<LabOrder?> FindLabOrderAsync(Guid id, CancellationToken ct);
+    Task InsertLabOrderAsync(LabOrder order, CancellationToken ct);
+    Task UpdateLabOrderAsync(LabOrder order, CancellationToken ct);
+    Task<LabResult?> FindLatestLabResultAsync(Guid orderId, CancellationToken ct);
+    Task InsertLabResultAsync(LabResult result, CancellationToken ct);
+    Task UpdateLabResultAsync(LabResult result, CancellationToken ct);
+    Task<CriticalAlert?> FindCriticalAlertAsync(Guid id, CancellationToken ct);
+    Task InsertCriticalAlertAsync(CriticalAlert alert, CancellationToken ct);
+    Task UpdateCriticalAlertAsync(CriticalAlert alert, CancellationToken ct);
+}

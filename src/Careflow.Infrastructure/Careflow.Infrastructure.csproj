@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup><ProjectReference Include="../Careflow.Application/Careflow.Application.csproj" /></ItemGroup>
+  <ItemGroup><FrameworkReference Include="Microsoft.AspNetCore.App" /></ItemGroup>
+  <ItemGroup Condition="'$(UseExternalSqlProvider)' != 'true'"><PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.8" /></ItemGroup>
+</Project>

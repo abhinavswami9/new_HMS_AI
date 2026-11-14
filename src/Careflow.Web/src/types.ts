@@ -1,0 +1,757 @@
+export type Patient = {
+  id: string;
+  uhid: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  dateOfBirth: string;
+  sex: string;
+  phone: string;
+  email: string;
+  bloodGroup: string;
+  address: string;
+  emergencyContact: string;
+  createdAt: string;
+  active: boolean;
+  version: number;
+  title: string;
+  middleName: string;
+  maritalStatus: string;
+  fatherName: string;
+  spouseName: string;
+  motherName: string;
+  guardianName: string;
+  guardianRelation: string;
+  religion: string;
+  occupation: string;
+  education: string;
+  language: string;
+  nationality: string;
+  aadhaarNumber: string;
+  abhaNumber: string;
+  abhaAddress: string;
+  city: string;
+  state: string;
+  pincode: string;
+  country: string;
+};
+export type Doctor = {
+  id: string;
+  name: string;
+  department: string;
+  initials: string;
+  color: string;
+};
+export type Appointment = {
+  id: string;
+  patientId: string;
+  doctorId: string;
+  startsAt: string;
+  durationMinutes: number;
+  mode: string;
+  reason: string;
+  status: string;
+  token: number | null;
+  createdAt: string;
+  version: number;
+};
+export type Vitals = {
+  temperatureC: number | null;
+  pulse: number | null;
+  systolic: number | null;
+  diastolic: number | null;
+  weightKg: number | null;
+  spo2: number | null;
+};
+export type Allergy = { substance: string; reaction: string; severity: string };
+export type PrescriptionItem = {
+  medicineId: string;
+  name: string;
+  dose: string;
+  frequency: string;
+  durationDays: number;
+  instructions: string;
+};
+export type ClinicalOrder = {
+  kind: string;
+  name: string;
+  instructions: string;
+};
+export type Encounter = {
+  id: string;
+  patientId: string;
+  appointmentId: string | null;
+  doctorId: string;
+  status: string;
+  chiefComplaint: string;
+  examination: string;
+  diagnosis: string;
+  plan: string;
+  followUp: string;
+  vitals: Vitals;
+  allergies: Allergy[];
+  prescription: PrescriptionItem[];
+  orders: ClinicalOrder[];
+  allergyReviewed: boolean;
+  updatedAt: string;
+  signedBy: string | null;
+  signedAt: string | null;
+  contentHash: string | null;
+  version: number;
+};
+export type InvoiceLine = {
+  serviceId: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+};
+export type Payment = {
+  id: string;
+  amount: number;
+  method: string;
+  reference: string;
+  receivedAt: string;
+  receivedBy: string;
+};
+export type Invoice = {
+  id: string;
+  number: string;
+  patientId: string;
+  encounterId: string | null;
+  status: string;
+  lines: InvoiceLine[];
+  discount: number;
+  taxRate: number;
+  payments: Payment[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  paid: number;
+  balance: number;
+  createdAt: string;
+  issuedAt: string | null;
+  version: number;
+};
+export type Service = {
+  id: string;
+  name: string;
+  department: string;
+  price: number;
+};
+export type Medicine = {
+  id: string;
+  genericName: string;
+  brandName: string;
+  strength: string;
+  form: string;
+};
+export type Module = {
+  key: string;
+  name: string;
+  enabled: boolean;
+  phase: number;
+  description: string;
+};
+export type Audit = {
+  id: string;
+  actorId: string;
+  actorName: string;
+  action: string;
+  entity: string;
+  entityId: string;
+  reason: string;
+  occurredAt: string;
+  changes: string | null;
+};
+export type Workspace = {
+  patients: Patient[];
+  appointments: Appointment[];
+  encounters: Encounter[];
+  invoices: Invoice[];
+  doctors: Doctor[];
+  services: Service[];
+  medicines: Medicine[];
+  modules: Module[];
+  audit: Audit[];
+  hospitalName: string;
+  branchName: string;
+  care: CareWorkspace;
+};
+export type Principal = {
+  id: string;
+  name: string;
+  role: string;
+  hospitalId: string;
+  branchId: string;
+  permissions: string[];
+};
+export type Chart = {
+  patient: Patient;
+  encounters: Encounter[];
+  appointments: Appointment[];
+  invoices: Invoice[];
+  historyTruncated: boolean;
+  care: CareChart;
+};
+export type CareChart = {
+  admissions: Admission[];
+  nursingNotes: NursingNote[];
+  medicationOrders: MedicationOrder[];
+  dispenses: Dispense[];
+  labOrders: LabOrder[];
+  labResults: LabResult[];
+  radiologyOrders: RadiologyOrder[];
+  radiologyReports: RadiologyReport[];
+  emergencyRegistrations: EmergencyRegistration[];
+  otBookings: OtBooking[];
+  bloodIssues: BloodIssue[];
+  coverages: Coverage[];
+  preauthorizations: Preauthorization[];
+  claims: Claim[];
+  teleSessions: TeleSession[];
+  truncated: boolean;
+};
+export type StaffMember = { id: string; name: string };
+
+export type Bed = {
+  id: string;
+  ward: string;
+  number: string;
+  kind: string;
+  status: string;
+  notes: string;
+  version: number;
+};
+export type Admission = {
+  id: string;
+  number: string;
+  patientId: string;
+  bedId: string;
+  doctorId: string;
+  status: string;
+  reason: string;
+  admittedAt: string;
+  dischargedAt: string | null;
+  dischargeSummary: string;
+  dischargeDiagnosis: string;
+  dischargeInstructions: string;
+  version: number;
+  admissionType: string;
+  diagnosisOnAdmission: string;
+  attendantName: string;
+  attendantPhone: string;
+  payerType: string;
+  coverageId: string | null;
+  expectedDischargeDate: string | null;
+};
+export type BedEvent = {
+  id: string;
+  admissionId: string | null;
+  bedId: string;
+  action: string;
+  fromStatus: string;
+  toStatus: string;
+  actorId: string;
+  at: string;
+  reason: string;
+};
+export type NursingNote = {
+  id: string;
+  admissionId: string;
+  patientId: string;
+  kind: string;
+  text: string;
+  vitals: Vitals;
+  intakeMl: number | null;
+  outputMl: number | null;
+  painScore: number | null;
+  fallRisk: string;
+  createdBy: string;
+  createdAt: string;
+};
+export type MedicationOrder = {
+  id: string;
+  admissionId: string;
+  patientId: string;
+  medicineId: string;
+  name: string;
+  dose: string;
+  route: string;
+  frequency: string;
+  startsAt: string;
+  endsAt: string | null;
+  status: string;
+  orderedBy: string;
+  createdAt: string;
+  version: number;
+};
+export type MedicationAdministration = {
+  id: string;
+  orderId: string;
+  admissionId: string;
+  batchId: string;
+  quantity: number;
+  givenAt: string;
+  givenBy: string;
+  witness: string;
+  notes: string;
+};
+export type ShiftHandover = {
+  id: string;
+  fromNurse: string;
+  toNurseName: string;
+  summary: string;
+  patientIds: string[];
+  status: string;
+  createdAt: string;
+  acknowledgedAt: string | null;
+  acknowledgedBy: string | null;
+  version: number;
+  toNurseId: string;
+};
+export type StockBatch = {
+  id: string;
+  medicineId: string;
+  batchNumber: string;
+  expiryDate: string;
+  quantity: number;
+  unitCost: number;
+  supplier: string;
+  reference: string;
+  receivedAt: string;
+  receivedBy: string;
+  status: string;
+  version: number;
+};
+export type StockMovement = {
+  id: string;
+  batchId: string;
+  kind: string;
+  quantity: number;
+  reference: string;
+  actorId: string;
+  at: string;
+};
+export type BatchAllocation = {
+  batchId: string;
+  batchNumber: string;
+  quantity: number;
+};
+export type DispenseLine = {
+  medicineId: string;
+  name: string;
+  quantity: number;
+  batches: BatchAllocation[];
+};
+export type Dispense = {
+  id: string;
+  number: string;
+  kind: string;
+  patientId: string;
+  encounterId: string | null;
+  admissionId: string | null;
+  lines: DispenseLine[];
+  idempotencyKey: string;
+  createdAt: string;
+  createdBy: string;
+  requestHash: string;
+};
+export type LabTest = {
+  id: string;
+  code: string;
+  name: string;
+  specimenType: string;
+  unit: string;
+  referenceLow: number | null;
+  referenceHigh: number | null;
+  criticalLow: number | null;
+  criticalHigh: number | null;
+  active: boolean;
+};
+export type LabOrder = {
+  id: string;
+  number: string;
+  patientId: string;
+  encounterId: string | null;
+  admissionId: string | null;
+  testId: string;
+  priority: string;
+  status: string;
+  barcode: string | null;
+  accession: string | null;
+  orderedBy: string;
+  orderedAt: string;
+  collectedAt: string | null;
+  processedAt: string | null;
+  resultedAt: string | null;
+  validatedAt: string | null;
+  authorizedAt: string | null;
+  rejectionReason: string;
+  version: number;
+  clinicalNote: string;
+  specimenType: string | null;
+  volumeMl: number | null;
+  collectedBy: string | null;
+};
+export type LabResult = {
+  id: string;
+  orderId: string;
+  version: number;
+  value: string;
+  numericValue: number | null;
+  unit: string;
+  referenceLow: number | null;
+  referenceHigh: number | null;
+  flag: string;
+  enteredBy: string;
+  enteredAt: string;
+  validatedBy: string | null;
+  validatedAt: string | null;
+  authorizedBy: string | null;
+  authorizedAt: string | null;
+  contentHash: string | null;
+};
+export type CriticalAlert = {
+  id: string;
+  kind: string;
+  entityId: string;
+  patientId: string;
+  message: string;
+  severity: string;
+  status: string;
+  createdAt: string;
+  acknowledgedAt: string | null;
+  acknowledgedBy: string | null;
+  acknowledgeNote: string;
+};
+export type CareWorkspace = {
+  beds: Bed[];
+  admissions: Admission[];
+  bedEvents: BedEvent[];
+  nursingNotes: NursingNote[];
+  medicationOrders: MedicationOrder[];
+  administrations: MedicationAdministration[];
+  handovers: ShiftHandover[];
+  stockBatches: StockBatch[];
+  stockMovements: StockMovement[];
+  dispenses: Dispense[];
+  labTests: LabTest[];
+  labOrders: LabOrder[];
+  labResults: LabResult[];
+  criticalAlerts: CriticalAlert[];
+  radiologyOrders: RadiologyOrder[];
+  radiologyReports: RadiologyReport[];
+  emergencyRegistrations: EmergencyRegistration[];
+  triageAssessments: TriageAssessment[];
+  otBookings: OtBooking[];
+  bloodUnits: BloodUnit[];
+  bloodIssues: BloodIssue[];
+  payers: Payer[];
+  plans: InsurancePlan[];
+  coverages: Coverage[];
+  preauthorizations: Preauthorization[];
+  claims: Claim[];
+  claimLines: ClaimLine[];
+  settlements: Settlement[];
+  incentiveRules: IncentiveRule[];
+  incentiveBatches: IncentiveBatch[];
+  incentiveLines: IncentiveLine[];
+  incentivePayments: IncentivePayment[];
+  teleSessions: TeleSession[];
+  inventoryItems: InventoryItem[];
+  inventoryStores: InventoryStore[];
+  vendors: Vendor[];
+  inventoryBatches: InventoryBatch[];
+  inventoryIndents: InventoryIndent[];
+  purchaseOrders: PurchaseOrder[];
+  transfers: InventoryTransfer[];
+  cssdSets: InstrumentSet[];
+  cssdCycles: SterilizerCycle[];
+  cssdIssues: CssdIssue[];
+  infections: Infection[];
+  incidents: QualityIncident[];
+  risks: RiskAssessment[];
+  capas: Capa[];
+  audits: ClinicalAudit[];
+  qualityIndicators: QualityIndicator[];
+  indicatorResults: IndicatorResult[];
+  qualityDocuments: QualityDocument[];
+  portalAccounts: PortalAccount[];
+  proxyGrants: ProxyGrant[];
+  reportDefinitions: ReportDefinition[];
+  reportExecutions: ReportExecution[];
+  nurses: StaffMember[];
+  truncated: boolean;
+};
+
+export type Infection = {
+  id: string; number: string; patientId: string; encounterId: string | null; category: string; site: string;
+  detectedMethod: string; detectedOn: string; severity: string; status: string; reportedBy: string; reportedAt: string;
+  investigation: string; outcome: string; version: number;
+};
+export type QualityIncident = {
+  id: string; number: string; category: string; severity: string; description: string; location: string;
+  patientId: string | null; reportedBy: string; reportedAt: string; status: string; triageNote: string;
+  assignedTo: string; triagedAt: string | null; investigation: string; rootCause: string; version: number;
+};
+export type RiskAssessment = {
+  id: string; number: string; domain: string; description: string; probability: number; impact: number;
+  score: number; mitigation: string; owner: string; status: string; assessedAt: string; version: number;
+};
+export type Capa = {
+  id: string; number: string; incidentId: string | null; infectionId: string | null; auditId: string | null;
+  riskId: string | null; correction: string; correctiveAction: string; preventiveAction: string; owner: string;
+  dueDate: string; status: string; effectivenessEvidence: string; effectivenessVerified: boolean;
+  verifiedBy: string; verifiedAt: string | null; createdAt: string; createdBy: string; version: number;
+};
+export type ClinicalAudit = {
+  id: string; number: string; domain: string; scope: string; plannedFor: string; lead: string; status: string;
+  findings: string; scorePercent: number; report: string; createdAt: string; createdBy: string; version: number;
+};
+export type QualityIndicator = {
+  id: string; code: string; name: string; definition: string; numerator: string; denominator: string;
+  period: string; owner: string; status: string; version: number;
+};
+export type IndicatorResult = {
+  id: string; indicatorId: string; periodStart: string; periodEnd: string; numerator: number;
+  denominator: number; value: number; basis: string; note: string; recordedBy: string; recordedAt: string;
+};
+export type QualityDocument = {
+  id: string; number: string; title: string; category: string; status: string; currentVersion: number;
+  owner: string; createdAt: string; version: number;
+};
+export type PortalAccount = {
+  id: string; userId: string; patientId: string; userName: string; status: string; proofingEvidence: string;
+  verifiedBy: string; verifiedAt: string | null; createdAt: string; version: number;
+};
+export type ProxyGrant = {
+  id: string; patientId: string; accountId: string; scope: string; expiresOn: string; status: string;
+  grantedBy: string; grantedAt: string; revokedBy: string; revokedAt: string | null; version: number;
+};
+export type ReportDefinition = {
+  id: string; code: string; name: string; category: string; status: string; currentVersion: number;
+  owner: string; createdAt: string; version: number;
+};
+export type ReportExecution = {
+  id: string; number: string; definitionId: string; definitionVersion: number; parameters: string; rows: string;
+  rowCount: number; status: string; executedBy: string; executedAt: string; error: string; version: number;
+};
+
+export type Payer = { id: string; code: string; name: string; contact: string; active: boolean };
+export type InsurancePlan = { id: string; payerId: string; code: string; name: string; policyType: string; sumInsuredLimit: number };
+export type Coverage = {
+  id: string; number: string; patientId: string; planId: string; policyNumber: string; memberId: string;
+  validFrom: string; validTo: string; sumInsured: number; deductible: number; status: string; version: number;
+};
+export type Preauthorization = {
+  id: string; number: string; coverageId: string; patientId: string; diagnosisCode: string; procedureCode: string;
+  requestedAmount: number; status: string; validFrom: string | null; validTo: string | null; approvedAmount: number | null;
+  responseNote: string; respondedBy: string | null; respondedAt: string | null; requestedBy: string; requestedAt: string; version: number;
+};
+export type Claim = {
+  id: string; number: string; patientId: string; coverageId: string; invoiceId: string | null; admissionId: string | null;
+  diagnosisCode: string; totalAmount: number; approvedAmount: number; patientLiability: number; status: string;
+  queryNote: string; responseNote: string; rejectionReason: string; submittedBy: string | null; submittedAt: string | null;
+  createdBy: string; createdAt: string; version: number;
+};
+export type ClaimLine = { id: string; claimId: string; serviceCode: string; description: string; quantity: number; unitPrice: number; amount: number; approvedAmount: number };
+export type Settlement = { id: string; number: string; claimId: string; amount: number; mode: string; reference: string; settledAt: string; settledBy: string };
+export type IncentiveRule = {
+  id: string; name: string; scopeKind: string; doctorId: string | null; basis: string; mode: string; value: number;
+  effectiveFrom: string; effectiveTo: string | null; status: string; createdBy: string; version: number;
+};
+export type IncentiveBatch = {
+  id: string; number: string; periodStart: string; periodEnd: string; status: string; totalAmount: number;
+  calculatedBy: string; calculatedAt: string; approvedBy: string; approvedAt: string | null; recalculationReason: string | null; version: number;
+};
+export type IncentiveLine = { id: string; batchId: string; doctorId: string; ruleId: string; basisLabel: string; basisAmount: number; incentiveAmount: number; snapshot: string };
+export type IncentivePayment = { id: string; batchId: string; amount: number; mode: string; reference: string; paidBy: string; paidAt: string };
+export type TeleSession = {
+  id: string; number: string; appointmentId: string; patientId: string; doctorId: string; status: string;
+  scheduledAt: string; consentObtained: boolean; startedAt: string | null; endedAt: string | null; endNote: string; emergencyAdvice: string; version: number;
+};
+export type InventoryItem = { id: string; code: string; name: string; category: string; uom: string; reorderLevel: number; unitCost: number; active: boolean };
+export type InventoryStore = { id: string; code: string; name: string; kind: string };
+export type Vendor = { id: string; code: string; name: string; authorized: boolean };
+export type InventoryBatch = { id: string; batchNumber: string; itemId: string; storeId: string; expiryDate: string | null; quantity: number; unitCost: number; version: number };
+export type InventoryIndent = {
+  id: string; number: string; storeId: string; itemId: string; quantity: number; priority: string; status: string;
+  reason: string; raisedBy: string; raisedAt: string; approvedBy: string | null; approvedAt: string | null; version: number;
+};
+export type PurchaseOrder = {
+  id: string; number: string; vendorId: string; itemId: string; indentId: string; quantity: number; unitCost: number;
+  status: string; raisedBy: string; raisedAt: string; receivedBy: string | null; receivedAt: string | null; version: number;
+};
+export type InventoryTransfer = {
+  id: string; number: string; fromStoreId: string; toStoreId: string; itemId: string; batchId: string; quantity: number;
+  status: string; note: string; dispatchedBy: string; dispatchedAt: string; receivedBy: string | null; receivedAt: string | null; version: number;
+};
+export type InstrumentSet = { id: string; code: string; name: string; status: string; missingCount: number; sterileExpiry: string | null; lastCycleId: string | null; version: number };
+export type SterilizerCycle = {
+  id: string; number: string; method: string; machine: string; tempC: number; durationMin: number; status: string;
+  startedAt: string; endedAt: string | null; operator: string; version: number;
+};
+export type CssdIssue = {
+  id: string; number: string; setId: string; bookingId: string | null; issuedTo: string; status: string;
+  returnCondition: string; issuedAt: string; issuedBy: string; returnedAt: string | null; version: number;
+};
+
+export type RadiologyOrder = {
+  id: string;
+  number: string;
+  patientId: string;
+  encounterId: string | null;
+  admissionId: string | null;
+  procedure: string;
+  modality: string;
+  bodyPart: string;
+  laterality: string;
+  priority: string;
+  status: string;
+  accession: string | null;
+  clinicalNote: string;
+  orderedBy: string;
+  orderedAt: string;
+  scheduledAt: string | null;
+  performedAt: string | null;
+  studyUid: string | null;
+  version: number;
+};
+export type RadiologyReport = {
+  id: string;
+  orderId: string;
+  version: number;
+  findings: string;
+  impression: string;
+  critical: boolean;
+  status: string;
+  reportedBy: string;
+  reportedAt: string;
+  authorizedBy: string | null;
+  authorizedAt: string | null;
+  contentHash: string | null;
+};
+export type EmergencyRegistration = {
+  id: string;
+  number: string;
+  patientId: string | null;
+  patientName: string;
+  sex: string;
+  dateOfBirth: string | null;
+  arrivalMode: string;
+  status: string;
+  arrivedAt: string;
+  createdBy: string;
+  version: number;
+  referringFacility: string;
+  broughtBy: string;
+  medicoLegalCase: boolean;
+};
+export type TriageAssessment = {
+  id: string;
+  registrationId: string;
+  category: string;
+  complaint: string;
+  vitals: Vitals;
+  assessedBy: string;
+  assessedAt: string;
+};
+export type EmergencyObservation = {
+  id: string;
+  registrationId: string;
+  note: string;
+  vitals: Vitals;
+  recordedBy: string;
+  recordedAt: string;
+};
+export type EmergencyDisposition = {
+  id: string;
+  registrationId: string;
+  kind: string;
+  summary: string;
+  admissionId: string | null;
+  receivingFacility: string | null;
+  decidedBy: string;
+  decidedAt: string;
+};
+export type OtBooking = {
+  id: string;
+  number: string;
+  patientId: string;
+  admissionId: string | null;
+  procedure: string;
+  laterality: string;
+  site: string;
+  surgeonId: string;
+  anaesthesia: string;
+  priority: string;
+  status: string;
+  theatre: string;
+  scheduledStart: string | null;
+  scheduledEnd: string | null;
+  requestedAt: string;
+  requestedBy: string;
+  timeIn: string | null;
+  timeOut: string | null;
+  operationNote: string;
+  version: number;
+};
+export type OtChecklist = {
+  id: string;
+  bookingId: string;
+  consent: boolean;
+  anaesthesiaAssessment: boolean;
+  fastingConfirmed: boolean;
+  siteMarked: boolean;
+  safetyChecklist: boolean;
+  notes: string;
+  recordedBy: string;
+  recordedAt: string;
+};
+export type BloodUnit = {
+  id: string;
+  unitNumber: string;
+  bloodGroup: string;
+  component: string;
+  expiryDate: string;
+  status: string;
+  donorName: string;
+  collectedAt: string;
+  version: number;
+};
+export type BloodScreening = {
+  id: string;
+  unitId: string;
+  hbsag: boolean;
+  hiv: boolean;
+  hcv: boolean;
+  vdrl: boolean;
+  notes: string;
+  testedBy: string;
+  testedAt: string;
+};
+export type BloodCrossmatch = {
+  id: string;
+  number: string;
+  unitId: string;
+  patientId: string;
+  compatibility: string;
+  status: string;
+  testedBy: string;
+  testedAt: string;
+};
+export type BloodIssue = {
+  id: string;
+  number: string;
+  unitId: string;
+  patientId: string;
+  admissionId: string | null;
+  status: string;
+  reaction: string;
+  returnAssessment: string;
+  issuedBy: string;
+  issuedAt: string;
+  transfusedAt: string | null;
+  notes: string;
+  version: number;
+};

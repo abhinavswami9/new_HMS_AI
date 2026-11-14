@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../../src/Careflow.Application/Careflow.Application.csproj" /><ProjectReference Include="../../src/Careflow.Infrastructure/Careflow.Infrastructure.csproj" /></ItemGroup>
+  <ItemGroup><Content Include="../../database/migrations/*.sql" Link="migrations/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
+</Project>

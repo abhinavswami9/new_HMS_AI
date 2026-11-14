@@ -1,0 +1,37 @@
+# Phase 2 implementation boundary
+
+Updated: 2026-11-13. This file records the delivered Phase 2 increment. The full requested scope remains in MODULE_SPECIFICATIONS.md and ROADMAP.md. Phase 1 boundaries remain in PHASE1_STATUS.md.
+
+| Work package      | Implemented in this increment                                                                                                                                                                                                                      | Still required before Phase 2 exit                                                                                                                                                                            |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| IPD/ADT           | Admission, transfer, discharge; unique active admission per patient and bed; bed board with Available/Occupied/Cleaning/Maintenance; discharge summary/diagnosis/instructions; discharged admissions immutable; bed events and audit               | Admission requests/cancellation, care-team assignment, ward/room master editors, discharge planning/checklists, bed reservation, inter-branch transfer, complete ADT history pagination                       |
+| Nursing           | Append-only assessments/progress/intake-output notes, vitals validation, pain/fall risk, configurable escalation policy, critical alerts, medication orders, eMAR administrations with batch stock decrement, named shift handover acknowledgement | Nursing care plans, scheduled dose due/overdue logic, witness/controlled-drug policy, escalation routing/acknowledgement SLAs, handover templates, complete observation flowsheets                            |
+| Pharmacy          | Batch/expiry stock receipt, append-only movements, FEFO dispensing, OPD signed-prescription linkage, IPD active-medication-order linkage, request-hash idempotency, stock CAS concurrency guard, dispense print view                               | Suppliers/PO/GRN approval, returns/recalls, quarantine/release, controlled drugs, multi-store transfers, valuation, purchase billing, barcode label printing                                                  |
+| LIS               | Test catalog, order → collect/barcode/accession → process → result → technical validation → pathologist authorization, specimen rejection, critical alerts, immutable authorized reports with content hash, TAT view                               | Profiles/packages, multi-analyte panels, analyzer interfaces, QC/Westgard rules, NABL document control, report PDF/addendum/corrected reports, age/sex/method-specific reference intervals, phlebotomy rounds |
+| Chart integration | Patient chart now includes permission-filtered admissions, nursing notes, medication orders, dispenses, lab orders/results with truncation warning                                                                                                 | Complete paginated longitudinal archive, cross-module order reconciliation, problem-list integration                                                                                                          |
+| Persistence       | Migration 0002 adds ipd/nurse/pharmacy/lab/alerts schemas, branch-scoped worklists, composite FKs, filtered active-admission indexes, stock versioning, immutability triggers, configurable nursing policy seed                                    | Execute against real SQL Server; concurrency/deadlock/tenant integration tests; least-privilege grants; outbox dispatcher; backup/restore and load tests                                                      |
+| UI/operability    | Inpatient bed board, Nursing station, Pharmacy stock/dispensing, Laboratory worklist/report, role switcher for Pharmacist/Lab Technician/Pathologist/Nurse 2, care history tab, module-disabled route guards                                       | Server-paginated worklists, accessibility audit, barcode scanning, label/report PDF renderer, downtime UX, observability dashboards                                                                           |
+
+## Important distinctions
+
+- The preview is connected to the real .NET API, but the running persistence adapter is the development-only in-memory Demo adapter. Restarting the API resets synthetic data.
+- The SQL adapter compiles and migration 0002 passes static TSQL parsing. No SQL Server instance was available, so no claim is made that Phase 2 migrations or queries have executed successfully.
+- Nursing escalation thresholds are loaded from `org.Policies` key `nursing.escalation`. The migration seeds an **unapproved** default; a hospital must approve it through its governed policy process before nursing observations can be recorded. The Demo adapter seeds an approved synthetic policy for preview only.
+- Laboratory critical thresholds are currently test-catalog fields, not a full age/sex/method/specimen-specific reference-interval engine.
+- eMAR prevents duplicate administration at the exact same order/time and decrements batch stock, but it does not yet calculate scheduled doses, overdue doses, controlled-drug witness requirements or clinical decision support.
+- Dispensing idempotency keys are scoped to hospital/branch/actor and bound to a canonical request hash. Reusing a key with a different payload is rejected.
+- Authorized lab reports and discharged admissions are immutable. Addendum/corrected-report workflows are planned; do not bypass immutability by creating unrelated duplicate records.
+- Workspace and chart care lists are bounded and expose truncation warnings. They are not complete archives.
+
+## Verification performed
+
+- .NET solution build: passed with the external-provider compilation override required by the sandbox network.
+- Application/domain executable tests: 40 passed (Phase 1 baseline plus ADT, bed readiness, nursing policy/escalation, eMAR, named handover, discharge immutability, stock receipt, FEFO/idempotent dispensing, IPD order linkage, LIS collection/rejection/validation/authorization/critical alerts).
+- Phase 1 HTTP smoke checks: 21 passed.
+- Phase 2 HTTP smoke checks: 20 passed (admission/bed occupancy, nursing escalation, pharmacy RBAC/stock, LIS critical workflow, separation of duties, alert acknowledgement, named handover, discharge).
+- Frontend unit tests: 6 passed.
+- Browser workflows: 3 passed (Phase 1 patient→appointment→EMR→invoice/payment; Phase 2 inpatient→nursing→pharmacy→LIS; mobile navigation/module honesty/dark mode).
+- Frontend production bundle: passed.
+- SQL migration 0002: static TSQL parse passed (lint only). Phase 2 data paths execute against a real SQL Server through `tests/Careflow.SqlTests` in the CI `sql-integration` job — admission/bed constraints, the unapproved-policy nursing gate, eMAR stock CAS, handover acknowledgement, FEFO/idempotent dispensing, IPD order linkage, LIS separation of duties and discharge immutability all run on SQL Server.
+
+These checks are development evidence, not a production readiness or accreditation assessment.

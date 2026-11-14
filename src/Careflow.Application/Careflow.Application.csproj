@@ -1,0 +1,1 @@
+<Project Sdk="Microsoft.NET.Sdk"><ItemGroup><ProjectReference Include="../Careflow.Domain/Careflow.Domain.csproj" /></ItemGroup></Project>
